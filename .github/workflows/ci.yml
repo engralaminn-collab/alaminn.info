@@ -114,7 +114,14 @@ jobs:
         run: pkill -f "next dev" || true
 
       - name: Production build
-        run: npm run build
+        run: |
+          set +e
+          npm run build 2>&1 | tee /tmp/build-output.txt
+          code=${PIPESTATUS[0]}
+          if [ $code -ne 0 ]; then
+            grep -B3 -A8 "Error\|error" /tmp/build-output.txt | tail -40 | sed 's/^/::error::build| /' || true
+          fi
+          exit $code
 
       - name: Standalone artifact smoke test
         run: |
