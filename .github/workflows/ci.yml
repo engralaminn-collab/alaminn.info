@@ -32,7 +32,9 @@ jobs:
     timeout-minutes: 30
     env:
       NODE_ENV: development
-      DATABASE_URL: file:/home/user/alaminn.info/db/custom.db
+      # Absolute path on the runner (github.workspace) — SQLite relative
+      # paths resolve differently for CLI vs server; absolute is unambiguous.
+      DATABASE_URL: file:${{ github.workspace }}/db/custom.db
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXTAUTH_URL: http://localhost:3000
       ADMIN_BOOTSTRAP_EMAIL: ci-admin@alaminn.info
