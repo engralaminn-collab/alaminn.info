@@ -86,7 +86,14 @@ jobs:
         run: npm run test
 
       - name: Security suite (22 tests)
-        run: npm run security:test
+        run: |
+          set +e
+          npm run security:test 2>&1 | tee /tmp/security-output.txt
+          code=${PIPESTATUS[0]}
+          # Surface each failing test as a readable annotation in the Checks UI.
+          grep -E "^\[[0-9]+\] FAIL" /tmp/security-output.txt | head -25 | sed 's/^/::error::/' || true
+          grep -A2 "Failed" /tmp/security-output.txt | head -10 | sed 's/^/::error::detail| /' || true
+          exit $code
 
       - name: Upload diagnostics on failure
         if: failure()
