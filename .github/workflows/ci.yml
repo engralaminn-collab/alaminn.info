@@ -114,6 +114,11 @@ jobs:
         run: pkill -f "next dev" || true
 
       - name: Production build
+        env:
+          # Must be production for `next build` — the job-level development
+          # default breaks prerendering (React dev/prod runtime mismatch in
+          # the build worker: "Cannot read properties of null (useContext)").
+          NODE_ENV: production
         run: |
           set +e
           npm run build 2>&1 | tee /tmp/build-output.txt
