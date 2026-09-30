@@ -86,6 +86,10 @@ jobs:
         run: npm run test
 
       - name: Security suite (22 tests)
+        env:
+          # The suite defaults to port 3001 (historical); point it at the
+          # dev server this workflow started on port 3000.
+          SECURITY_TEST_BASE: http://localhost:3000
         run: |
           set +e
           npm run security:test 2>&1 | tee /tmp/security-output.txt
