@@ -24,7 +24,7 @@
 | Production build | ✅ 291 routes | `npm run build` → exit 0 (after font fix, see §4.1) |
 | Standalone server smoke | ✅ All routes OK | Routes 200, admin API 401, `health/deep` = `ok`, 0 Prisma errors |
 | Database seed | ✅ Complete | 12 universities, 24 courses, 8 scholarships, 6 supervisors, 30 destinations; EL: 6 courses / 4 tests / 24 questions / 4 tutors |
-| GitHub CI/CD | ❌ Broken/missing | Only an auto-generated `webpack.yml` exists on the remote and its run **failed** (`npx webpack` — no webpack in this stack) |
+| GitHub CI/CD | ❌ Broken at audit time → ✅ **FIXED on this branch** | Audit found only a failed auto-generated `webpack.yml`; this branch adds a real pipeline — **CI run `36660264011` concluded `success`** (install → ephemeral DB+seed → typecheck → lint → 241 tests → 22 security → build → standalone smoke) |
 
 **Historical blockers that are now RESOLVED (verified live):**
 - DNS resolution → resolves correctly.

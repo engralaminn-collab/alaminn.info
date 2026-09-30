@@ -1,6 +1,6 @@
 # Alaminn.info — Automated Security Test Report
 
-**Date:** 2026-09-30T02:07:40.242Z  
+**Date:** 2026-09-30T02:18:07.903Z  
 **Target:** http://localhost:3000 (live dev server)  
 **Script:** `scripts/security-tests.ts` (`bun run security:test`)  
 **Stack:** Next.js 16 App Router, TypeScript, Prisma + SQLite, custom HMAC session cookies.
@@ -162,7 +162,7 @@
 
 **Observed:** HttpOnly=true, SameSite=true, Secure=false
 
-**Details:** Session cookie has HttpOnly + SameSite. Secure=false (dev environment, will be true in production). Cookie: alaminn_session=cmungtlp90000nzqrbxgujzcd.VIEWER.1790762859.f0f5bad0b3c4512fb91f43f20d1377fe39e481dc23c7ffa67d1a0c0ac5bf...
+**Details:** Session cookie has HttpOnly + SameSite. Secure=false (dev environment, will be true in production). Cookie: alaminn_session=cmunh72bm0000nzhrgh731kg9.VIEWER.1790763487.103b2a47d0ea2600f1be3b9bc8961d720dd6ff4150a28af1acbb76c9c1f5...
 
 ---
 
