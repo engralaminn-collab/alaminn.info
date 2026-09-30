@@ -88,6 +88,16 @@ jobs:
       - name: Security suite (22 tests)
         run: npm run security:test
 
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-diagnostics
+          path: |
+            docs/security-report.md
+            /tmp/dev-server.log
+          if-no-files-found: ignore
+
       - name: Stop dev server
         if: always()
         run: pkill -f "next dev" || true
