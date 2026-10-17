@@ -1,13 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Manrope, DM_Serif_Display } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 import { RegisterSW } from "@/components/site/pwa/register-sw";
 
-const inter = Inter({
+// ─── Self-hosted fonts (OFL-licensed, committed in src/fonts) ──────
+// Switched from `next/font/google` to `next/font/local` so builds are
+// deterministic and never require network access to fonts.googleapis.com
+// (Google blocks/limits in some CI and regional networks). Same families,
+// weights, CSS variables and preload strategy as before.
+const inter = localFont({
+  src: "../fonts/inter-latin-wght-normal.woff2",
   variable: "--font-inter",
-  subsets: ["latin"],
+  // Inter variable font — full 100–900 weight axis.
+  weight: "100 900",
   display: "swap",
   // Only one font may be preloaded — Manrope (display) is the most
   // LCP-critical, so the body + serif fonts skip preload to avoid
@@ -15,20 +22,21 @@ const inter = Inter({
   preload: false,
 });
 
-const manrope = Manrope({
+const manrope = localFont({
+  src: "../fonts/manrope-latin-wght-normal.woff2",
   variable: "--font-manrope",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  // Manrope variable font — 200–800 axis; the UI uses 400–800.
+  weight: "200 800",
   display: "swap",
   // Manrope is the display font used in the hero headline (the LCP
   // candidate) — preload it for the fastest first paint.
   preload: true,
 });
 
-const dmSerif = DM_Serif_Display({
+const dmSerif = localFont({
+  src: "../fonts/dm-serif-display-latin-400-normal.woff2",
   variable: "--font-dm-serif",
-  subsets: ["latin"],
-  weight: ["400"],
+  weight: "400",
   display: "swap",
   preload: false,
 });

@@ -1,7 +1,7 @@
 # Alaminn.info — Automated Security Test Report
 
-**Date:** 2026-09-29T20:46:35.290Z  
-**Target:** http://127.0.0.1:3001 (live dev server)  
+**Date:** 2026-09-30T02:18:07.903Z  
+**Target:** http://localhost:3000 (live dev server)  
 **Script:** `scripts/security-tests.ts` (`bun run security:test`)  
 **Stack:** Next.js 16 App Router, TypeScript, Prisma + SQLite, custom HMAC session cookies.
 
@@ -30,7 +30,7 @@
 | 18 | Cookie tampering | critical | PASS | alaminn_session=fakepayload.fakesignatur → 401, alaminn_session=tampered.user.role.99999 → 401, alaminn_session= → 401, alaminn_session=AAAAAAAA.BBBBBBBB → 401 |
 | 6 | Broken authentication | high | PASS | HTTP 422 |
 | 14 | Mass assignment | critical | PASS | HTTP 200, returned role=VIEWER |
-| 7 | Cookie security | high | PASS | HttpOnly=true, SameSite=true, Secure=true |
+| 7 | Cookie security | high | PASS | HttpOnly=true, SameSite=true, Secure=false |
 | 16 | Session fixation | high | PASS | HTTP 200, new cookie issued=true |
 | 20 | Malformed JSON | low | PASS | HTTP 400 |
 | 21 | File upload abuse | medium | PASS | HTTP 400 |
@@ -160,9 +160,9 @@
 
 **Expected:** HttpOnly + SameSite present (Secure in production only)
 
-**Observed:** HttpOnly=true, SameSite=true, Secure=true
+**Observed:** HttpOnly=true, SameSite=true, Secure=false
 
-**Details:** Session cookie has HttpOnly + SameSite. Secure=true (dev environment, will be true in production). Cookie: alaminn_session=cmun5cqan0000ofrt8x1bv3a7.VIEWER.1790743594.71fa5371f87bd99b09a80334c981bda35b6154e7efbe291967a3c5716156...
+**Details:** Session cookie has HttpOnly + SameSite. Secure=false (dev environment, will be true in production). Cookie: alaminn_session=cmunh72bm0000nzhrgh731kg9.VIEWER.1790763487.103b2a47d0ea2600f1be3b9bc8961d720dd6ff4150a28af1acbb76c9c1f5...
 
 ---
 
