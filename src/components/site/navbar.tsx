@@ -123,16 +123,14 @@ export function Navbar() {
           {/* Right CTA — Schedule a Meeting (the ONE primary CTA) */}
           <div className="hidden items-center gap-2 lg:flex">
             <Button
+              asChild
               size="sm"
               className="h-10 gap-1.5 rounded-xl bg-orange-600 px-4 text-sm font-semibold text-white shadow-orange transition-all hover:bg-orange-700 hover:shadow-lg"
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  window.dispatchEvent(new CustomEvent("alaminn:open-schedule-meeting"));
-                }
-              }}
             >
-              <Calendar className="h-4 w-4" />
-              Schedule a Meeting
+              <Link href="/book">
+                <Calendar className="h-4 w-4" />
+                Book Consultation
+              </Link>
             </Button>
           </div>
 
