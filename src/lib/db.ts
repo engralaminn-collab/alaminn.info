@@ -1,27 +1,29 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaLibSql } from '@prisma/adapter-libsql'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
   __prismaVersion?: string
 }
 
-// Bust cache when schema version changes (forces new client after prisma generate)
 const SCHEMA_VERSION = 'v5-analytics-2026-07'
 
-// Force new client creation when version changes
 const cachedVersion = globalForPrisma.__prismaVersion
 const cachedPrisma = globalForPrisma.prisma
 
 if (cachedVersion !== SCHEMA_VERSION && cachedPrisma) {
-  // Disconnect old client and clear cache
   cachedPrisma.$disconnect().catch(() => {})
   globalForPrisma.prisma = undefined
 }
+
+const dbUrl = process.env.DATABASE_URL || 'file:prisma/dev.db'
+const adapter = new PrismaLibSql({ url: dbUrl })
 
 export const db =
   (globalForPrisma.__prismaVersion === SCHEMA_VERSION && globalForPrisma.prisma)
     ? globalForPrisma.prisma
     : new PrismaClient({
+        adapter,
         log: ['error', 'warn'],
       })
 
