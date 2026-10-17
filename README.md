@@ -1,5 +1,15 @@
 # Alaminn.info — Premium Build 2026-08-14
 
+> ### ✅ Verified state — 2026-09-30 audit
+> Production **live** at https://alaminn.info (health OK, admin API rejects
+> anonymous access, Higher Study hub serving 12 universities / 24 courses /
+> 8 scholarships / 30 destinations). Full quality gate re-run in a clean
+> environment: **typecheck 0 errors · lint 0 errors · 256/256 tests · 22/22
+> security tests · 291-route production build · standalone smoke test PASS**.
+> Evidence and per-feature status: [`docs/CURRENT-STATE-AUDIT.md`](./docs/CURRENT-STATE-AUDIT.md)
+> · [`docs/FEATURE-INVENTORY.md`](./docs/FEATURE-INVENTORY.md) ·
+> [`docs/FINAL-IMPLEMENTATION-REPORT.md`](./docs/FINAL-IMPLEMENTATION-REPORT.md).
+
 Premium executive authority platform for **Al Aminn** — a single integrated
 application combining a public executive-authority website, a Higher Study
 advisory platform, an English Learning platform, a private Command Center

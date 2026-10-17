@@ -3,7 +3,13 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { ok, fail, writeAudit } from "@/lib/admin-api";
 import { writeFile, mkdir } from "node:fs/promises";
-import { resolve, extname } from "node:path";
+import { resolve } from "node:path";
+import sharp from "sharp";
+import {
+  validateFileSignature,
+  verifyImage,
+  CANONICAL_EXT,
+} from "@/lib/upload-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -76,14 +82,36 @@ export async function POST(req: NextRequest) {
   }
 
   // Sanitize filename: keep the base name, slugify, then append the
-  // canonical extension derived from the MIME type so the served file
-  // has a sensible content type.
-  const originalName = file.name || `upload.${ALLOWED_MIME[mime]}`;
+  // canonical extension derived from the *validated* MIME type (server-side
+  // only — the client-supplied extension is never trusted, which prevents
+  // double-extension tricks like `shell.php.png` or `.svg` masquerade).
+  const originalName = file.name || `upload${CANONICAL_EXT[mime]}`;
   const baseName = originalName
     .replace(/\.[^.]+$/, "") // strip extension
     .slice(0, 80); // cap length
-  const ext = extname(originalName).toLowerCase() || `.${ALLOWED_MIME[mime]}`;
+  const ext = CANONICAL_EXT[mime] || `.${ALLOWED_MIME[mime]}`;
   const safeName = `${Date.now()}-${slugify(baseName) || "file"}${ext}`;
+
+  // ── Content validation (magic bytes + image decode) ───────────────
+  // The declared MIME type is untrusted: verify the actual bytes match.
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const signature = validateFileSignature(mime, buffer);
+  if (!signature.ok) {
+    return fail(`Upload rejected: ${signature.reason}`, ["content_mismatch"], 415);
+  }
+
+  // For images, decode with sharp — proves the bytes are a real image and
+  // yields ground-truth dimensions (client-supplied values are ignored).
+  const image = await verifyImage(mime, buffer, sharp);
+  if (["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mime) && !image) {
+    return fail(
+      "Upload rejected: file declares an image type but its bytes do not decode as one.",
+      ["invalid_image"],
+      415
+    );
+  }
+  const width = image?.width ?? null;
+  const height = image?.height ?? null;
 
   // Ensure the upload directory exists.
   try {
@@ -93,8 +121,12 @@ export async function POST(req: NextRequest) {
     return fail("Failed to prepare upload directory.", ["mkdir_failed"], 500);
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   const absPath = resolve(UPLOAD_DIR, safeName);
+  // Defence in depth: the resolved path MUST stay inside the upload dir
+  // (safeName is generated server-side, so this should always hold).
+  if (!absPath.startsWith(UPLOAD_DIR + "/")) {
+    return fail("Invalid storage path.", ["path_invalid"], 500);
+  }
   try {
     await writeFile(absPath, buffer);
   } catch (e) {
@@ -105,10 +137,8 @@ export async function POST(req: NextRequest) {
   const url = `/uploads/${safeName}`;
   const altText = (form.get("altText") as string | null) || null;
   const category = (form.get("category") as string | null) || null;
-  const widthRaw = form.get("width");
-  const heightRaw = form.get("height");
-  const width = widthRaw ? Number(widthRaw) || null : null;
-  const height = heightRaw ? Number(heightRaw) || null : null;
+  // Note: width/height come from server-side image decoding above —
+  // client-supplied dimension fields are intentionally ignored.
 
   try {
     const asset = await db.mediaAsset.create({

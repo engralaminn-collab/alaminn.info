@@ -6,7 +6,17 @@ async function main() {
 
   // ─── Admin user (bootstrap) ──────────────────────────────────
   const adminEmail = process.env.ADMIN_BOOTSTRAP_EMAIL || "admin@alaminn.info";
-  const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD || "ChangeMeNow!2024";
+  const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+  if (!adminPassword) {
+    console.error("\n[FATAL] ADMIN_BOOTSTRAP_PASSWORD environment variable is required for seeding.");
+    console.error("Generate one with: openssl rand -base64 18");
+    console.error("Then run: ADMIN_BOOTSTRAP_PASSWORD='<your-password>' bun run db:seed\n");
+    process.exit(1);
+  }
+  if (adminPassword.length < 12) {
+    console.error("\n[FATAL] ADMIN_BOOTSTRAP_PASSWORD must be at least 12 characters long.\n");
+    process.exit(1);
+  }
   await db.user.upsert({
     where: { email: adminEmail },
     update: {},

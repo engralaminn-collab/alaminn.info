@@ -87,7 +87,7 @@ DATABASE_URL=file:./db/custom.db
 # Leave AUTH_SECRET empty in dev (a fallback is used with a warning)
 AUTH_SECRET=
 ADMIN_EMAIL=admin@alaminn.info
-ADMIN_PASSWORD=ChangeMeNow!2024
+ADMIN_PASSWORD=<set_your_own_strong_password>
 ```
 
 ### Step 3 — Install dependencies (first time only, ~2 minutes)

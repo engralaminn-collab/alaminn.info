@@ -174,7 +174,7 @@ Produces a 64-character hex string (32 bytes of entropy).
 
 ```bash
 # .env
-AUTH_SECRET=3f9b8c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b
+AUTH_SECRET=<REPLACE_WITH_output_of_openssl_rand_hex_32>
 ```
 
 ### Validation
@@ -397,7 +397,7 @@ DATABASE_URL=file:./db/custom.db
 NODE_ENV=production
 NEXT_PUBLIC_SITE_URL=https://alaminn.info
 DATABASE_URL=file:/srv/alaminn/db/custom.db
-AUTH_SECRET=3f9b8c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b
+AUTH_SECRET=<REPLACE_WITH_openssl_rand_hex_32>
 EMAIL_FROM="Al Aminn <hello@alaminn.info>"
 EMAIL_REPLY_TO="hello@alaminn.info"
 

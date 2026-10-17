@@ -84,7 +84,7 @@ The output is a 64-character hex string (32 bytes). Paste it into your
 environment verbatim:
 
 ```bash
-AUTH_SECRET=3f9b8c1d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b
+AUTH_SECRET=<REPLACE_WITH_openssl_rand_hex_32>
 ```
 
 **Rotation policy:** if you ever rotate `AUTH_SECRET`, all existing session

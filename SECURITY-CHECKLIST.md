@@ -5,7 +5,7 @@ Stack: Next.js App Router, SQLite (Prisma), NextAuth v4 (HMAC-signed session coo
 Purpose: A project-specific security verification checklist. Run through every item before each production deploy and after any change to authentication, authorization, middleware, or database code. Mark items `[x]` when verified, `[ ]` when open. Open items must be tracked to closure in the **Known Gaps & Recommendations** section at the bottom.
 
 Verification sources for this checklist:
-- `src/middleware.ts` (security headers, request ID)
+- `src/proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts`; security headers, request ID)
 - `src/lib/rbac.ts` (11-role permission matrix)
 - `src/lib/auth.ts` (session + `requirePermission` / `requireRole`)
 - `src/lib/env.ts` (validated environment access)
@@ -86,15 +86,15 @@ Notes:
 
 ## 4. Security Headers
 
-All headers below are injected by `src/middleware.ts` (matcher: `/api/:path*` and `/`). Verified by the automated security test suite (header-security test, currently passing).
+All headers below are injected by `src/proxy.ts` (Next.js 16's renamed middleware file; matcher: `/api/:path*` and `/`). Verified by the automated security test suite (header-security test, currently passing).
 
 - [x] `X-Content-Type-Options: nosniff`
 - [x] `X-Frame-Options: DENY` (no framing of any page — mitigates clickjacking)
 - [x] `Referrer-Policy: strict-origin-when-cross-origin`
 - [x] `Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=(), interest-cohort=()` (all client-side feature APIs the app never uses are disabled)
 - [x] `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (production only — would break `http://localhost` in dev if applied universally)
-- [ ] `Content-Security-Policy` — **NOT YET IMPLEMENTED** in middleware. See the **CSP Recommendation** section below for the proposed header value and migration plan. This is the single most important open item in this checklist.
-- [x] `X-Request-Id` is echoed on every matched response for client/server log correlation (set by middleware, not a security header, but relevant to incident response).
+- [x] `Content-Security-Policy` — **IMPLEMENTED** in `src/proxy.ts` (verified by automated security test #8/#9 and by `curl -sI`). CSP value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests`. The `'unsafe-inline'` and `'unsafe-eval'` concessions are required for Next.js 16's RSC + inline-runtime architecture. See the **CSP Hardening** section below for the nonce-based CSP follow-up.
+- [x] `X-Request-Id` is echoed on every matched response for client/server log correlation (set by `src/proxy.ts`, not a security header, but relevant to incident response).
 
 ---
 
@@ -196,9 +196,9 @@ All headers below are injected by `src/middleware.ts` (matcher: `/api/:path*` an
 
 ---
 
-## CSP Recommendation
+## CSP Hardening (current state + nonce-based follow-up)
 
-The project SHOULD add a `Content-Security-Policy` response header in `src/middleware.ts`. Today the only anti-XSS-injection defenses are React's default escaping and the `X-Frame-Options: DENY` clickjacking mitigation. CSP adds defense-in-depth: even if a template injection or `dangerouslySetInnerHTML` misuse were introduced, CSP would block inline-script execution from an attacker-controlled source.
+The project HAS a `Content-Security-Policy` response header implemented in `src/proxy.ts`. It was added in the same commit as the other security headers and is verified present on every response by the automated security suite (tests #8 and #9) and by `curl -sI`. React's default escaping plus the CSP plus `X-Frame-Options: DENY` together provide defense-in-depth: even if a template injection or `dangerouslySetInnerHTML` misuse were introduced, CSP would block inline-script execution from an attacker-controlled source.
 
 ### Sample CSP
 
@@ -217,9 +217,9 @@ object-src 'none';
 
 ### Implementation notes
 
-- Add this as an additional entry in the `SECURITY_HEADERS` map in `src/middleware.ts`. The header should be emitted on all matched responses (same matcher as the existing headers).
+- The CSP is currently implemented in the `SECURITY_HEADERS` map in `src/proxy.ts` (Next.js 16 renamed `middleware.ts` → `proxy.ts`). The header is emitted on all matched responses (same matcher as the other security headers).
 - `'unsafe-inline'` and `'unsafe-eval'` are required because Next.js injects inline styles and small inline scripts during hydration, and Next.js dev mode uses `eval` for source maps. Production Next.js also uses some inline scripts for the page registry.
-- For a **stricter CSP**, migrate to nonce-based directives: generate a per-request nonce in middleware, set `script-src 'self' 'nonce-<random>'`, and configure Next.js to emit nonces on its inline scripts via the `nonce` option on `<Script>` components and the middleware-generated header. This is more involved and is tracked as an advanced follow-up.
+- For a **stricter CSP**, migrate to nonce-based directives: generate a per-request nonce in `src/proxy.ts`, set `script-src 'self' 'nonce-<random>'`, and configure Next.js to emit nonces on its inline scripts via the `nonce` option on `<Script>` components and the proxy-generated header. This is more involved and is tracked as an advanced follow-up.
 - `frame-ancestors 'none'` is stronger than `X-Frame-Options: DENY` and supersedes it in modern browsers; keep both for legacy coverage.
 - `connect-src 'self'` blocks cross-origin `fetch()` and XHR. The app makes no legitimate cross-origin API calls from the browser (analytics, auth, and admin fetches are all same-origin). If a third-party integration is added later (e.g., Stripe, a CDN-hosted analytics endpoint), its origin must be added here.
 - `img-src 'self' data: https:` allows inline `data:` URIs (used for blur placeholders) and any HTTPS image (used for OG previews of remote images if added later).
@@ -231,15 +231,15 @@ object-src 'none';
 
 This section lists, honestly, every open item from the checklist above with a concrete remediation. Items are ordered by severity.
 
-### (a) Content-Security-Policy is not yet implemented in middleware
-- **Severity:** High.
-- **Impact:** No defense-in-depth against XSS via injected inline scripts. React escaping is the sole defense.
-- **Remediation:** Add the CSP header from the **CSP Recommendation** section to `SECURITY_HEADERS` in `src/middleware.ts`. Roll out in `Report-Only` mode first, monitor violation reports for one week, then enforce.
+### (a) CSP uses `unsafe-inline` + `unsafe-eval` (follow-up: nonce-based CSP)
+- **Severity:** Low (was High before CSP was implemented).
+- **Impact:** The current CSP allows `'unsafe-inline'` and `'unsafe-eval'` for `script-src`, which are required for Next.js 16's RSC + inline-runtime architecture. A successful template injection could still execute inline scripts under these concessions.
+- **Remediation:** Migrate to nonce-based CSP. Generate a per-request nonce in `src/proxy.ts`, set `script-src 'self' 'nonce-<random>'`, and configure Next.js to emit nonces on its inline scripts. This is an advanced follow-up — the current CSP already provides strong defense-in-depth against XSS via injected external scripts.
 
 ### (b) Rate limiting is per-route-handler, not centralized
 - **Severity:** Medium.
 - **Impact:** New public POST endpoints can be added without rate limiting by mistake; limits do not share state across Node.js workers or multi-instance deploys.
-- **Remediation:** Implement rate limiting at the middleware layer (read the path + IP hash, consult a shared store, short-circuit with 429). Use a shared store (Redis in a multi-instance deploy, or a SQLite table in a single-instance deploy) for state. Remove the per-route `Map`-based limiters once the middleware limiter is in place.
+- **Remediation:** Implement rate limiting at the `src/proxy.ts` layer (read the path + IP hash, consult a shared store, short-circuit with 429). Use a shared store (Redis in a multi-instance deploy, or a SQLite table in a single-instance deploy) for state. Remove the per-route `Map`-based limiters once the proxy-layer limiter is in place.
 
 ### (c) No automatic DB backup cron job
 - **Severity:** Medium.

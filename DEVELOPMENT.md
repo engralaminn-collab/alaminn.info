@@ -6,7 +6,7 @@
 **Project**: `alaminn.info` — Premium executive authority platform for Al Aminn (Next.js 16 standalone production build)
 **Version**: 1.0.0
 **Stack**: Next.js 16.1.3 (App Router) · React 19 · TypeScript 5 · Tailwind CSS 4 · shadcn/ui · Prisma 6 (SQLite) · Bun 1.3.14
-**Default admin**: `admin@alaminn.info` / `ChangeMeNow!2024`
+**Default admin**: `admin@alaminn.info` / `(set via ADMIN_BOOTSTRAP_PASSWORD env var)
 
 ---
 
@@ -60,7 +60,7 @@ bun run dev                   # http://localhost:3000
 **First admin login**:
 - URL: `http://localhost:3000/admin/login`
 - Email: `admin@alaminn.info`
-- Password: `ChangeMeNow!2024`
+- Password: `(set via ADMIN_BOOTSTRAP_PASSWORD env var)
 - **Change the password immediately** at `/admin/settings`.
 
 **Install Bun** (if not present):
@@ -470,7 +470,7 @@ All env vars are read via `src/lib/env.ts`. **Never use `process.env` directly**
 
 ```bash
 DATABASE_URL=file:/home/z/my-project/db/custom.db
-AUTH_SECRET=2f8b9c4e7a1d6b3e9f5a8c2d4e6b1a9f3e7d2c5b8a4e1f6d9c3b7a2e5f8d1c4
+AUTH_SECRET=<REPLACE_WITH_openssl_rand_hex_32>
 AUTH_TRUST_HOST=true
 NEXT_PUBLIC_SITE_URL=https://alaminn.info
 NODE_ENV=development
@@ -592,7 +592,7 @@ Permissions matrix: `src/lib/rbac.ts`. Each permission follows `{domain}.{resour
 
 ```
 Email:    admin@alaminn.info
-Password: ChangeMeNow!2024
+Password: (set via ADMIN_BOOTSTRAP_PASSWORD env var)
 Role:     super_admin
 ```
 

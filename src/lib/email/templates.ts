@@ -881,86 +881,6 @@ We use double opt-in to protect your inbox. If you did not subscribe, you can sa
   }
 }
 
-// ─── 16. Admin Booking Notification (sent to engr.alaminn@gmail.com) ──────
-export function adminBookingNotification(p: {
-  reference: string;
-  name: string;
-  email: string;
-  whatsapp?: string | null;
-  country?: string | null;
-  studyLevel?: string | null;
-  subject?: string | null;
-  destination?: string | null;
-  intake?: string | null;
-  meetingType: string;
-  date: string;
-  time: string;
-  timezone: string;
-  message?: string | null;
-  bookingId: string;
-  createdAt: string;
-  adminUrl: string;
-}): TemplateResult {
-  return renderEmail({
-    subject: `NEW MEETING BOOKED — ${p.name}`,
-    preheader: `New booking ${p.reference} — ${p.meetingType} on ${p.date}`,
-    accent: "orange",
-    bodyHtml: `
-      <h1>🔔 New Consultation Booking</h1>
-      <div class="meta">
-        <strong>Booking ID:</strong> ${escape(p.reference)}<br/>
-        <strong>Created:</strong> ${escape(p.createdAt)}<br/>
-      </div>
-      <h2>Student Details</h2>
-      <div class="meta">
-        <strong>Name:</strong> ${escape(p.name)}<br/>
-        <strong>Email:</strong> ${escape(p.email)}<br/>
-        ${p.whatsapp ? `<strong>WhatsApp:</strong> ${escape(p.whatsapp)}<br/>` : ""}
-        ${p.country ? `<strong>Country:</strong> ${escape(p.country)}<br/>` : ""}
-        ${p.studyLevel ? `<strong>Study Level:</strong> ${escape(p.studyLevel)}<br/>` : ""}
-        ${p.subject ? `<strong>Subject:</strong> ${escape(p.subject)}<br/>` : ""}
-        ${p.destination ? `<strong>Preferred Destination:</strong> ${escape(p.destination)}<br/>` : ""}
-        ${p.intake ? `<strong>Preferred Intake:</strong> ${escape(p.intake)}<br/>` : ""}
-      </div>
-      <h2>Meeting Details</h2>
-      <div class="meta">
-        <strong>Type:</strong> ${escape(p.meetingType.replace(/-/g, " "))}<br/>
-        <strong>Date:</strong> ${escape(p.date)}<br/>
-        <strong>Time:</strong> ${escape(p.time)}<br/>
-        <strong>Timezone:</strong> ${escape(p.timezone)}<br/>
-      </div>
-      ${p.message ? `<h2>Student Message</h2><p>${escape(p.message)}</p>` : ""}
-      <h2>Admin Actions</h2>
-      ${btn(p.adminUrl + "/admin/meetings", "Open Bookings")}
-      ${btn(p.adminUrl + "/admin/contacts", "Open Students")}
-      <p style="font-size:13px;color:#6B7A99;">This notification was sent automatically when a visitor booked a meeting through alaminn.info. The booking is confirmed in the system.</p>
-    `,
-    bodyText: `NEW MEETING BOOKED — ${p.name}
-
-Booking ID: ${p.reference}
-Created: ${p.createdAt}
-
-Student:
-  Name: ${p.name}
-  Email: ${p.email}
-  ${p.whatsapp ? "WhatsApp: " + p.whatsapp + "\n" : ""}${p.country ? "Country: " + p.country + "\n" : ""}${p.studyLevel ? "Study Level: " + p.studyLevel + "\n" : ""}${p.subject ? "Subject: " + p.subject + "\n" : ""}${p.destination ? "Preferred Destination: " + p.destination + "\n" : ""}${p.intake ? "Preferred Intake: " + p.intake + "\n" : ""}
-Meeting:
-  Type: ${p.meetingType.replace(/-/g, " ")}
-  Date: ${p.date}
-  Time: ${p.time}
-  Timezone: ${p.timezone}
-
-${p.message ? "Student Message:\n" + p.message + "\n\n" : ""}Admin Actions:
-  Open Bookings: ${p.adminUrl}/admin/meetings
-  Open Students: ${p.adminUrl}/admin/contacts
-
-This notification was sent automatically when a visitor booked a meeting through alaminn.info.`,
-  });
-  function escape(s: string) {
-    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-}
-
 // ─── Registry ─────────────────────────────────────────────────────────────
 export const EMAIL_TEMPLATES = {
   // Original 12 templates
@@ -987,8 +907,6 @@ export const EMAIL_TEMPLATES = {
   scholarshipDeadlineAlert,
   phdDeadlineAlert,
   newsletterConfirmation,
-  // Admin notification template
-  adminBookingNotification,
 } as const;
 
 export type EmailTemplateKey = keyof typeof EMAIL_TEMPLATES;

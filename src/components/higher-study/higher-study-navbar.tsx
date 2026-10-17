@@ -17,7 +17,6 @@ import {
   X,
   Send,
   ArrowLeft,
-  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,13 +24,15 @@ import { cn } from "@/lib/utils";
 /**
  * HigherStudyNavbar — the ONLY navigation on Higher Study pages.
  *
- * Clean, minimal design with grouped dropdowns to avoid clutter:
- *   [Al Aminn → /] | Universities | Courses | Scholarships | More ▾ | [Apply Now]
- *
  * When a visitor enters the Higher Study sub-platform, the main Alaminn.info
  * navigation (About, Expertise, Impact, Projects, Insights, Work With Me)
  * DISAPPEARS. Only the Al Aminn logo (clickable → "/") and the Higher Study
  * navigation remain.
+ *
+ *   [Al Aminn → /] | Universities | Courses | Scholarships | PhD & Research |
+ *   Supervisors | Destinations | Resources | Compare | [Apply Now]
+ *
+ * Clicking Al Aminn returns to the main homepage.
  */
 interface HsNavItem {
   label: string;
@@ -39,18 +40,13 @@ interface HsNavItem {
   icon: LucideIcon;
 }
 
-// Primary nav — always visible (most important items)
-const PRIMARY_NAV: HsNavItem[] = [
+const HS_NAV: HsNavItem[] = [
   { label: "Universities", href: "/higher-study/global-universities", icon: Building2 },
   { label: "Courses", href: "/higher-study/course-finder", icon: BookOpen },
   { label: "Scholarships", href: "/higher-study/scholarships", icon: Award },
-  { label: "Destinations", href: "/higher-study/destinations", icon: Globe2 },
-];
-
-// Secondary nav — in "More" dropdown
-const SECONDARY_NAV: HsNavItem[] = [
   { label: "PhD & Research", href: "/higher-study/phd-research", icon: FlaskConical },
   { label: "Supervisors", href: "/higher-study/supervisors", icon: UserSearch },
+  { label: "Destinations", href: "/higher-study/destinations", icon: Globe2 },
   { label: "Resources", href: "/higher-study/study-resources", icon: Library },
   { label: "Compare", href: "/higher-study/compare", icon: Columns3 },
 ];
@@ -64,7 +60,6 @@ function isActive(pathname: string | null, href: string): boolean {
 export function HigherStudyNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -81,14 +76,6 @@ export function HigherStudyNavbar() {
     };
   }, [mobileOpen]);
 
-  // Close mobile menu when user clicks a nav link (no effect needed)
-  const closeMobileMenu = () => {
-    setMobileOpen(false);
-    setMoreOpen(false);
-  };
-
-  const moreActive = SECONDARY_NAV.some((item) => isActive(pathname, item.href));
-
   return (
     <header
       className={cn(
@@ -102,160 +89,167 @@ export function HigherStudyNavbar() {
             "flex items-center justify-between gap-4 rounded-2xl border px-4 py-2.5 transition-all duration-300",
             scrolled
               ? "glass border-blue-900/10 shadow-soft"
-              : "border-transparent bg-transparent"
+              : "border-transparent bg-white/80 backdrop-blur-sm"
           )}
         >
-          {/* Logo — returns to main Alaminn.info homepage */}
+          {/* Al Aminn logo — links to "/" (return to main site) */}
           <Link href="/" className="group flex items-center gap-2.5 shrink-0">
             <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl grad-intelligence shadow-blue">
-              <ArrowLeft className="h-4 w-4 text-white transition-transform group-hover:-translate-x-0.5" />
+              <span className="absolute inset-0 rounded-xl ring-1 ring-white/15" />
+              <span className="h-2 w-2 rounded-full bg-orange-500 node-active" />
             </span>
-            <div className="hidden sm:flex flex-col leading-none">
-              <span className="text-sm font-bold tracking-tight text-foreground">
+            <div className="leading-tight">
+              <div className="font-display text-[15px] font-extrabold tracking-tight text-ink-900">
+                Al Aminn
+              </div>
+              <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-ink-500">
                 Higher Study
-              </span>
-              <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                Alaminn.info
-              </span>
+              </div>
             </div>
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-1">
-            {PRIMARY_NAV.map((item) => {
-              const Icon = item.icon;
+          {/* Desktop nav — Higher Study links only */}
+          <nav
+            className="hidden items-center gap-0.5 xl:flex"
+            aria-label="Higher Study navigation"
+          >
+            {HS_NAV.map((item) => {
               const active = isActive(pathname, item.href);
+              const Icon = item.icon;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                    "relative inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
                     active
-                      ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "text-orange-700"
+                      : "text-ink-700 hover:bg-orange-50 hover:text-orange-700"
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  {item.label}
+                  <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="whitespace-nowrap">{item.label}</span>
+                  {active && (
+                    <motion.span
+                      layoutId="hs-nav-active"
+                      className="absolute inset-x-2 -bottom-0.5 h-0.5 rounded-full bg-orange-500"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
+                  )}
                 </Link>
               );
             })}
-
-            {/* More dropdown — secondary nav items */}
-            <div className="relative">
-              <button
-                onClick={() => setMoreOpen(!moreOpen)}
-                onBlur={() => setTimeout(() => setMoreOpen(false), 150)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                  moreOpen || moreActive
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-                aria-expanded={moreOpen}
-                aria-haspopup="true"
-              >
-                More
-                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", moreOpen && "rotate-180")} />
-              </button>
-              <AnimatePresence>
-                {moreOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-border bg-popover p-1.5 shadow-lg"
-                  >
-                    {SECONDARY_NAV.map((item) => {
-                      const Icon = item.icon;
-                      const active = isActive(pathname, item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className={cn(
-                            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                            active
-                              ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </nav>
 
-          {/* CTA + mobile toggle */}
-          <div className="flex items-center gap-2">
+          {/* Apply Now CTA */}
+          <div className="hidden items-center gap-2 xl:flex">
             <Link
               href="/higher-study/apply"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-orange transition-all hover:bg-orange-700 hover:shadow-lg"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-orange-600 px-4 text-sm font-bold text-white shadow-orange transition-all hover:bg-orange-700 hover:shadow-lg"
             >
               <Send className="h-3.5 w-3.5" />
               Apply Now
             </Link>
-
-            {/* Mobile menu toggle */}
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-foreground"
-              aria-label="Toggle menu"
-              aria-expanded={mobileOpen}
-            >
-              {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            </button>
           </div>
-        </div>
 
-        {/* Mobile menu */}
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="lg:hidden overflow-hidden mt-2 rounded-2xl border border-border bg-popover p-2"
-            >
-              {[...PRIMARY_NAV, ...SECONDARY_NAV].map((item) => {
-                const Icon = item.icon;
-                const active = isActive(pathname, item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={closeMobileMenu}
-                    className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                      active
-                        ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                        : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-              <Link
-                href="/higher-study/apply"
-                className="mt-1 flex items-center justify-center gap-1.5 rounded-lg bg-orange-600 px-3 py-2.5 text-sm font-semibold text-white"
-              >
-                <Send className="h-4 w-4" />
-                Apply Now
-              </Link>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Mobile toggle */}
+          <button
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-ink-200 bg-white/70 text-ink-800 xl:hidden"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open Higher Study menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
+
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] xl:hidden"
+          >
+            <div
+              className="absolute inset-0 bg-ink-950/50 backdrop-blur-sm"
+              onClick={() => setMobileOpen(false)}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              className="absolute right-0 top-0 h-full w-[88%] max-w-[400px] overflow-y-auto bg-white p-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg grad-intelligence">
+                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                  </span>
+                  <div>
+                    <div className="font-display text-sm font-extrabold text-ink-900">Al Aminn</div>
+                    <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-ink-500">Higher Study</div>
+                  </div>
+                </Link>
+                <button
+                  onClick={() => setMobileOpen(false)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200"
+                  aria-label="Close menu"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Back to main site */}
+              <Link
+                href="/"
+                onClick={() => setMobileOpen(false)}
+                className="mt-4 flex items-center gap-2 rounded-lg border border-ink-200 px-3 py-2.5 text-sm font-medium text-ink-600 transition-colors hover:bg-blue-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Alaminn.info
+              </Link>
+
+              <nav className="mt-4 space-y-1" aria-label="Higher Study navigation">
+                {HS_NAV.map((item) => {
+                  const active = isActive(pathname, item.href);
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-3 text-left text-[15px] font-semibold transition-colors",
+                        active
+                          ? "bg-orange-50 text-orange-700"
+                          : "text-ink-900 hover:bg-orange-50"
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="mt-6">
+                <Link
+                  href="/higher-study/apply"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 text-sm font-bold text-white shadow-orange transition-colors hover:bg-orange-700"
+                >
+                  <Send className="h-4 w-4" />
+                  Apply Now
+                </Link>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

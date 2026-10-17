@@ -70,8 +70,8 @@ const TEMPLATE_NAMES = [
 ] as const;
 
 describe("EMAIL_TEMPLATES registry — completeness", () => {
-  it("exposes exactly 23 templates", () => {
-    expect(Object.keys(EMAIL_TEMPLATES)).toHaveLength(23);
+  it("exposes exactly 22 templates", () => {
+    expect(Object.keys(EMAIL_TEMPLATES)).toHaveLength(22);
   });
 
   it("exposes every expected template name", () => {

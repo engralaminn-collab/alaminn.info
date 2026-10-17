@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
 import { createHash, randomBytes } from "crypto";
 import { sendTransactional } from "@/lib/email";
 import { withObservability } from "@/lib/observability";
@@ -167,68 +166,6 @@ export const POST = withObservability(async (req: NextRequest) => {
       },
       { to: contactEmail, ipHash: hash, triggeredBy: "meeting_request.created" }
     ).catch(() => null);
-
-    // ─── ADMIN NOTIFICATION ──────────────────────────────────────
-    // 1. Send email notification to admin (engr.alaminn@gmail.com or configured address)
-    // 2. Create in-app admin notification
-    // 3. Create follow-up task
-    // All three are best-effort — never crash the booking if they fail.
-
-    // Get admin notification email from settings (default: engr.alaminn@gmail.com)
-    const adminEmailSetting = await db.setting.findUnique({
-      where: { key: "admin.notification_email" },
-    }).catch(() => null);
-    const adminNotificationEmail = adminEmailSetting?.value || "engr.alaminn@gmail.com";
-
-    // Send admin booking notification email
-    await sendTransactional(
-      "adminBookingNotification",
-      {
-        reference,
-        name: contactName,
-        email: contactEmail,
-        whatsapp: body.whatsapp ? String(body.whatsapp) : null,
-        country: body.country ? String(body.country) : null,
-        studyLevel: body.studyLevel ? String(body.studyLevel) : null,
-        subject: body.subject ? String(body.subject) : null,
-        destination: body.destination ? String(body.destination) : null,
-        intake: body.intake ? String(body.intake) : null,
-        meetingType,
-        date: parsedDate.toDateString(),
-        time: requestedTime,
-        timezone: "Asia/Dhaka",
-        message: body.topic ? String(body.topic) : null,
-        bookingId: meeting.id,
-        createdAt: new Date().toISOString(),
-        adminUrl: env().siteUrl,
-      },
-      { to: adminNotificationEmail, ipHash: hash, triggeredBy: "meeting_request.created" }
-    ).catch((e) => {
-      logger.error("meetings.admin_email_failed", { error: e, reference });
-    });
-
-    // Create in-app admin notification
-    await db.notification.create({
-      data: {
-        type: "meeting",
-        title: "🔔 NEW MEETING BOOKED",
-        message: `${contactName} booked a ${meetingType} meeting for ${parsedDate.toDateString()} at ${requestedTime}. Ref: ${reference}`,
-        link: "/admin/meetings",
-      },
-    }).catch(() => null);
-
-    // Create follow-up task
-    await db.task.create({
-      data: {
-        title: `Follow up: ${contactName} — ${meetingType} meeting`,
-        description: `Meeting booked for ${parsedDate.toDateString()} at ${requestedTime}. Reference: ${reference}. Contact: ${contactEmail}`,
-        priority: "high",
-        status: "open",
-        relatedType: "meeting",
-        relatedId: meeting.id,
-        dueDate: new Date(parsedDate.getTime() + 24 * 60 * 60 * 1000), // 24h after meeting date
-      },
-    }).catch(() => null);
 
     return ok(
       {
