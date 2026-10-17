@@ -352,10 +352,19 @@ Until every applicable box is evidenced, retain the status **PARTIAL / PRODUCTIO
 
 ## 16. Final packaging record
 
-The archive, byte size, and SHA-256 are generated after this source report is finalized. See:
+| Field | Exact value |
+|---|---|
+| Archive | `alaminn-info-production-final.zip` |
+| Source commit archived | `715eb3872cb9ddfc6af1319ecf430c2795425855` |
+| ZIP entries | 1,120 |
+| Exact byte size | **10,251,983 bytes** |
+| SHA-256 | **`b795335206b1914de8d910f3f3ac07d34eb8bae7ecf48a91a06e16eaa3c64c77`** |
+| Integrity test | PASS — `unzip -t` reported no errors |
+| Forbidden-path scan | PASS — no runtime `.env`, database, key/certificate, log, backup, `node_modules`, `.next`, coverage, or `.git` entries |
 
-- `alaminn-info-production-final.zip`
+Sidecars:
+
 - `alaminn-info-production-final.zip.sha256`
 - `alaminn-info-production-final.zip.manifest.txt`
 
-The repository copy of this report is updated with the exact values after archive generation; the immutable ZIP contains this pre-digest explanation to avoid a circular checksum.
+`.env.example` is intentionally included as a placeholder-only configuration template. The immutable ZIP contains the pre-digest wording of this section; the repository report and sidecars contain the exact post-creation values so the checksum is not circular.
