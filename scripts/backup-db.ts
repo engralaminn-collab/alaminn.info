@@ -41,7 +41,7 @@ import {
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma-client";
 import { gzipSync } from "node:zlib";
 
 // ─── Paths ────────────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ async function backupSqlite(): Promise<number> {
   logLine(`Source DB : ${DB_PATH}`);
   logLine(`Backup to : ${backupPath}`);
 
-  const prisma = new PrismaClient();
+  const prisma = createPrismaClient(`file:${DB_PATH}`);
   try {
     // Verify source integrity before backing up
     const integrity = await prisma.$queryRawUnsafe<
@@ -220,9 +220,7 @@ async function backupSqlite(): Promise<number> {
     const sizeBytes = statSync(backupPath).size;
 
     // Verify backup by opening it via a fresh Prisma connection
-    const backupPrisma = new PrismaClient({
-      datasources: { db: { url: `file:${backupPath}` } },
-    });
+    const backupPrisma = createPrismaClient(`file:${backupPath}`);
     try {
       const dstIntegrity = await backupPrisma.$queryRawUnsafe<
         { integrity_check: string }[]

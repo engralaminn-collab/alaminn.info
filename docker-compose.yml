@@ -19,7 +19,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL:-file:/app/db/production.db}
       - AUTH_SECRET=${AUTH_SECRET}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
@@ -40,28 +40,9 @@ services:
       retries: 3
       start_period: 10s
 
-  # ── Optional: MySQL 8 database ───────────────────────────────────
-  # Uncomment if you want Docker to manage MySQL instead of cPanel.
-  # db:
-  #   image: mysql:8.0
-  #   container_name: alaminn-db
-  #   restart: unless-stopped
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-  #     MYSQL_DATABASE: aloeduca_alamin_crm
-  #     MYSQL_USER: aloeduca_alamin_crm
-  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-  #   volumes:
-  #     - db-data:/var/lib/mysql
-  #   ports:
-  #     - "3306:3306"
-  #   networks:
-  #     - alaminn-net
-  #   healthcheck:
-  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  # The authoritative Prisma schema is SQLite. /app/db is a named volume so
+  # application data survives image replacement; MySQL is intentionally not
+  # advertised because this release has no provider-compatible MySQL schema.
 
   # ── Optional: Nginx reverse proxy (SSL termination) ──────────────
   # nginx:
@@ -83,7 +64,6 @@ services:
 volumes:
   app-storage:
   app-db:
-  # db-data:
 
 networks:
   alaminn-net:

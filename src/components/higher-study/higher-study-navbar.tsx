@@ -18,6 +18,7 @@ import {
   Send,
   ArrowLeft,
   ChevronDown,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -59,6 +60,7 @@ const MORE_HS_NAV: HsNavItem[] = [
   { label: "Supervisors", href: "/higher-study/supervisors", icon: UserSearch },
   { label: "Resources", href: "/higher-study/study-resources", icon: Library },
   { label: "Compare", href: "/higher-study/compare", icon: Columns3 },
+  { label: "Private Planner", href: "/higher-study/planner", icon: ListChecks },
 ];
 
 const HS_NAV = [...PRIMARY_HS_NAV, ...MORE_HS_NAV];

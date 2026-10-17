@@ -159,14 +159,14 @@ export async function POST(req: NextRequest) {
     const outputFormat = VALID_OUTPUT_FORMATS.has(String(body.outputFormat || ""))
       ? String(body.outputFormat)
       : "markdown";
-    const approvalRequired = body.approvalRequired !== undefined
-      ? !!body.approvalRequired
-      : true;
+    // Governance invariant: model output is never allowed to bypass a human.
+    const approvalRequired = true;
     const project = body.project ? String(body.project) : null;
     const deadline = body.deadline ? new Date(String(body.deadline)) : null;
 
-    // Determine initial status
-    const status = approvalRequired ? "awaiting-approval" : "draft";
+    // The worker claims only queued tasks; awaiting-approval is set after a
+    // draft result has actually been persisted.
+    const status = "queued";
 
     // Create the task — requester is the authenticated user
     const task = await db.aiTask.create({

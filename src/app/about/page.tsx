@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { managedMetadata } from "@/lib/managed-seo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PublicPage } from "@/components/site/public-chrome";
@@ -11,11 +12,12 @@ import {
   Database, Briefcase, TrendingUp, Users, Lightbulb,
 } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "About & Expertise",
-  description:
-    "Al Aminn — executive operations leader, sales strategist, education-business growth specialist and AI-powered systems builder. Professional profile, biography, career journey, core expertise and selected work.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return managedMetadata("about", {
+    title: "About & Expertise",
+    description: "Al Aminn — executive operations leader, sales strategist, education-business growth specialist and AI-powered systems builder. Professional profile, biography, career journey, core expertise and selected work.",
+  });
+}
 
 const PILLARS = [
   {

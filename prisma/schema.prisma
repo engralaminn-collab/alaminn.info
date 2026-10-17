@@ -2,7 +2,10 @@
 // Premium executive authority platform for Al Aminn
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  engineType      = "client"
+  previewFeatures = ["queryCompiler", "driverAdapters"]
 }
 
 datasource db {
@@ -18,9 +21,13 @@ model User {
   role                  String       @default("VIEWER") // SUPER_ADMIN | OWNER | EXECUTIVE_ASSISTANT | CRM_MANAGER | PARTNERSHIP_MANAGER | CONTENT_MANAGER | MARKETING_MANAGER | PROJECT_MANAGER | AI_REVIEWER | SECURITY_AUDITOR | VIEWER
   status                String       @default("active") // active | suspended | inactive
   passwordHash          String?
-  passwordResetToken    String?
+  passwordResetToken     String?
   passwordResetExpiresAt DateTime?
-  lastLoginAt           DateTime?
+  twoFactorEnabled       Boolean      @default(false)
+  twoFactorSecret        String?
+  twoFactorPendingSecret String?
+  twoFactorRecoveryCodes String?
+  lastLoginAt            DateTime?
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
   inquiries             Inquiry[]
@@ -419,6 +426,33 @@ model Notification {
 
   @@index([userId])
   @@index([read])
+  @@index([createdAt])
+}
+
+// Durable delivery queue. A booking remains successful even when its email
+// transport is unavailable; retry state survives application restarts.
+model EmailDelivery {
+  id                String    @id @default(cuid())
+  templateKey       String
+  recipient         String
+  payload           String // JSON-encoded, template-specific non-secret fields
+  options           String // JSON-encoded recipient/audit options; never credentials
+  status            String    @default("PENDING") // PENDING | SENT | FAILED | RETRYING
+  attempts          Int       @default(0)
+  maxAttempts       Int       @default(4)
+  nextAttemptAt     DateTime?
+  provider          String?
+  providerMessageId String?
+  lastError         String?
+  triggeredBy       String?
+  relatedType       String?
+  relatedId         String?
+  sentAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([relatedType, relatedId])
   @@index([createdAt])
 }
 

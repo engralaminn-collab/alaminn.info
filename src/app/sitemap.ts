@@ -19,7 +19,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${siteUrl}/`, lastModified: now, changeFrequency: "weekly", priority: 1.0 },
     { url: `${siteUrl}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
-    { url: `${siteUrl}/expertise`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
     { url: `${siteUrl}/impact`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${siteUrl}/projects`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${siteUrl}/case-studies`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
@@ -29,7 +28,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/ecosystem/alo-education`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${siteUrl}/ecosystem/alo-labs`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${siteUrl}/ecosystem/tech360`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${siteUrl}/contact`, lastModified: now, changeFrequency: "yearly", priority: 0.6 },
+    { url: `${siteUrl}/work-with-me`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${siteUrl}/legal/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/legal/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
@@ -52,6 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${siteUrl}/higher-study/study-resources`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${siteUrl}/higher-study/compare`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${siteUrl}/higher-study/saved`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${siteUrl}/higher-study/planner`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${siteUrl}/higher-study/eligibility-check`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${siteUrl}/higher-study/application-guide`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${siteUrl}/higher-study/book-consultation`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },

@@ -1,22 +1,9 @@
-# Alaminn.info — Production deployment (MANUALLY APPROVED ONLY)
-# ----------------------------------------------------------------------------
-# This workflow is INERT until the repository owner configures these Secrets
-# (Settings → Secrets and variables → Actions):
-#
-#   DEPLOY_HOST      — production server hostname or IP
-#   DEPLOY_USER      — SSH user (least privilege: deploy user, not root)
-#   DEPLOY_SSH_KEY   — private SSH key authorized on the server
-#   DEPLOY_PORT      — SSH port (defaults to 22 if unset)
-#
-# Safety properties:
-#   - Requires manual dispatch (workflow_dispatch) AND the GitHub "production"
-#     environment with required reviewers — no automatic deploys, ever.
-#   - Only deploys a commit that is on this branch AND whose CI run succeeded.
-#   - Deploys via a versioned release directory; previous release is kept so
-#     rollback is a symlink switch + service reload (see docs/ROLLBACK-GUIDE.md).
-#   - Never prints secret values; SSH host key is captured and verified.
-#   - Post-deploy health check runs automatically; on failure the previous
-#     release is restored (rollback) and the job fails loudly.
+# Alaminn.info — production deployment (manual approval only)
+# Required production-environment secrets:
+#   DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
+# Optional: DEPLOY_PORT (default 22)
+# The server must have $HOME/alaminn.info/shared/.env.production and a working
+# systemd `alaminn-info` service or PM2 `alaminn-info` process.
 
 name: Deploy (manual approval)
 
@@ -24,97 +11,161 @@ on:
   workflow_dispatch:
     inputs:
       commit:
-        description: "Commit SHA to deploy (defaults to the branch HEAD — must have green CI)"
+        description: "Commit SHA to deploy (must be on the selected production branch and have green CI)"
         required: false
         default: ""
 
 jobs:
   guard:
-    name: Verify CI status of target commit
+    name: Verify branch and CI status of target commit
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.pick.outputs.sha }}
+      branch: ${{ steps.pick.outputs.branch }}
     steps:
-      - name: Pick commit
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pick and validate commit
         id: pick
+        env:
+          INPUT_SHA: ${{ github.event.inputs.commit }}
+          DEFAULT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          SHA="${{ github.event.inputs.commit || github.sha }}"
+          set -euo pipefail
+          SHA="${INPUT_SHA:-$DEFAULT_SHA}"
+          case "$BRANCH" in
+            upload-local-project|main) ;;
+            *) echo "::error::Production deploys are allowed only from upload-local-project or main, not $BRANCH"; exit 1 ;;
+          esac
+          git cat-file -e "$SHA^{commit}"
+          git merge-base --is-ancestor "$SHA" "origin/$BRANCH" || {
+            echo "::error::Target commit is not on origin/$BRANCH"; exit 1;
+          }
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "Deploy target: $SHA"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "Deploy target: $SHA from $BRANCH"
 
       - name: Check CI conclusion
-        run: |
-          SHA="${{ steps.pick.outputs.sha }}"
-          STATUS=$(gh api "repos/${{ github.repository }}/commits/$SHA/check-runs" --jq '[.check_runs[] | select(.name == "Typecheck · Lint · Test · Security · Build") | .conclusion] | unique | join(",")')
-          echo "CI conclusions for $SHA: $STATUS"
-          if [ "$STATUS" != "success" ]; then
-            echo "::error::Refusing to deploy: CI has not passed on $SHA"
-            exit 1
-          fi
         env:
           GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.pick.outputs.sha }}
+        run: |
+          set -euo pipefail
+          STATUS=$(gh api "repos/${{ github.repository }}/commits/$SHA/check-runs" --jq '[.check_runs[] | select(.name == "Typecheck · Lint · Test · Security · Build") | .conclusion] | unique | join(",")')
+          echo "CI conclusions for $SHA: ${STATUS:-none}"
+          if [ "$STATUS" != "success" ]; then
+            echo "::error::Refusing to deploy: the complete CI quality gate has not passed on $SHA"
+            exit 1
+          fi
 
   deploy:
     name: Deploy to production (requires approval)
     needs: guard
     runs-on: ubuntu-latest
-    # The owner must configure this environment in GitHub with required
-    # reviewers — that is the human approval gate.
     environment: production
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check required secrets exist
         env:
           H: ${{ secrets.DEPLOY_HOST }}
           U: ${{ secrets.DEPLOY_USER }}
           K: ${{ secrets.DEPLOY_SSH_KEY }}
+          KH: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           missing=0
-          for pair in "DEPLOY_HOST:$H" "DEPLOY_USER:$U" "DEPLOY_SSH_KEY:$K"; do
+          for pair in "DEPLOY_HOST:$H" "DEPLOY_USER:$U" "DEPLOY_SSH_KEY:$K" "DEPLOY_KNOWN_HOSTS:$KH"; do
             name="${pair%%:*}"; val="${pair#*:}"
             if [ -z "$val" ]; then echo "::error::Secret $name is not configured"; missing=1; fi
           done
-          exit $missing
+          exit "$missing"
 
-      - name: Setup SSH
+      - name: Set up pinned SSH host key
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          PORT="${{ secrets.DEPLOY_PORT || 22 }}"
-          ssh-keyscan -p "$PORT" -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-          echo "SSH_READY=true" >> "$GITHUB_ENV"
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy (versioned release + health check + rollback on failure)
+      - name: Back up, deploy versioned release, verify, and roll back on failure
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          PORT: ${{ secrets.DEPLOY_PORT || 22 }}
+          SHA: ${{ needs.guard.outputs.sha }}
+          BRANCH: ${{ needs.guard.outputs.branch }}
         run: |
-          PORT="${{ secrets.DEPLOY_PORT || 22 }}"
-          SHA="${{ needs.guard.outputs.sha }}"
-          SSH="ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
-          set -e
-          echo "▶ Deploying $SHA (versioned release)"
-          $SSH bash -s <<'REMOTE'
-            set -e
-            APP_DIR="${APP_DIR:-$HOME/alaminn.info}"
-            RELEASES="$APP_DIR/releases"
-            REL="$RELEASES/$(date +%Y%m%d-%H%M%S)"
-            mkdir -p "$RELEASES"
-            cd "$APP_DIR"
-            git fetch origin arena/01a0effa-alaminn-info
-            git worktree add "$REL" "$SHA" 2>/dev/null || true
-            cd "$REL"
-            npm ci --no-audit --no-fund
-            npm run build
-            echo "RELEASE_DIR=$REL" >> .release-env
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=yes "$USER@$HOST" \
+            bash -s -- "$SHA" "$BRANCH" <<'REMOTE'
+          set -euo pipefail
+          SHA="$1"
+          BRANCH="$2"
+          APP_DIR="${APP_DIR:-$HOME/alaminn.info}"
+          RELEASES="$APP_DIR/releases"
+          ENV_FILE="$APP_DIR/shared/.env.production"
+          REL="$RELEASES/$(date +%Y%m%d-%H%M%S)-${SHA:0:12}"
+          PREVIOUS=""
+          [ -L "$APP_DIR/current" ] && PREVIOUS=$(readlink -f "$APP_DIR/current")
+
+          restart_app() {
+            if sudo systemctl reload alaminn-info; then return 0; fi
+            if command -v pm2 >/dev/null 2>&1 && pm2 reload alaminn-info; then return 0; fi
+            return 1
+          }
+
+          rollback() {
+            if [ -n "$PREVIOUS" ] && [ -d "$PREVIOUS" ]; then
+              ln -sfn "$PREVIOUS" "$APP_DIR/current"
+              restart_app || true
+              echo "Rolled back current symlink to $PREVIOUS"
+            fi
+          }
+          trap 'echo "Deployment failed"; rollback' ERR
+
+          [ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE"; exit 1; }
+          NODE_MAJOR=$(node -p 'Number(process.versions.node.split(`.`)[0])')
+          [ "$NODE_MAJOR" -ge 22 ] || { echo "Node.js 22+ is required"; exit 1; }
+          mkdir -p "$RELEASES" "$APP_DIR/shared/db" "$APP_DIR/shared/storage"
+
+          cd "$APP_DIR"
+          git fetch --prune origin "$BRANCH"
+          git cat-file -e "$SHA^{commit}"
+          git merge-base --is-ancestor "$SHA" "origin/$BRANCH"
+          git worktree add --detach "$REL" "$SHA"
+          ln -s "$ENV_FILE" "$REL/.env"
+          ln -s "$ENV_FILE" "$REL/.env.production"
+          rm -rf "$REL/db" "$REL/storage"
+          ln -s "$APP_DIR/shared/db" "$REL/db"
+          ln -s "$APP_DIR/shared/storage" "$REL/storage"
+
+          cd "$REL"
+          npm ci --no-audit --no-fund
+
+          # Back up the shared database before any additive migration. On a
+          # first deployment there is no database to back up yet.
+          DB_PATH=$(node --env-file="$ENV_FILE" -e 'const p=(process.env.DATABASE_URL||``).slice(5); console.log(require(`path`).resolve(p))')
+          if [ -f "$DB_PATH" ]; then
+            node --env-file="$ENV_FILE" ./node_modules/tsx/dist/cli.mjs scripts/backup-db.ts
+          fi
+
+          node --env-file="$ENV_FILE" scripts/migrate-sqlite.mjs
+          node --env-file="$ENV_FILE" scripts/migrate-sqlite.mjs --check
+          npm run build
+
+          ln -sfn "$REL" "$APP_DIR/current"
+          restart_app || { echo "No working service reload command"; exit 1; }
+          sleep 5
+          curl --fail --silent --show-error --max-time 10 http://127.0.0.1:3076/api/readiness >/dev/null
+
+          trap - ERR
+          echo "Deployment and DB readiness check passed for $SHA"
           REMOTE
-          echo "▶ Switching traffic and reloading service"
-          $SSH bash -s <<'REMOTE'
-            set -e
-            APP_DIR="${APP_DIR:-$HOME/alaminn.info}"
-            REL=$(ls -1dt "$APP_DIR"/releases/*/ | head -1)
-            ln -sfn "$REL" "$APP_DIR/current"
-            sudo systemctl reload alaminn-info 2>/dev/null || pm2 reload alaminn-info 2>/dev/null || echo "NOTE: restart the app service for the new release"
-            sleep 5
-            curl -sf http://127.0.0.1:3076/api/health > /dev/null || { echo "Health check failed — rolling back"; ln -sfn "$(ls -1dt "$APP_DIR"/releases/*/ | sed -n 2p)" "$APP_DIR/current"; sudo systemctl reload alaminn-info 2>/dev/null || pm2 reload alaminn-info 2>/dev/null || true; exit 1; }
-            echo "Post-deploy health check PASSED"
-          REMOTE
-          echo "✅ Deployed $SHA"

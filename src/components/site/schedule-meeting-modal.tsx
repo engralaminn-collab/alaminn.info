@@ -95,18 +95,30 @@ function ScheduleMeetingDialog({ onOpenChange }: { onOpenChange: (v: boolean) =>
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [country, setCountry] = useState("");
+  const [studyLevel, setStudyLevel] = useState("");
+  const [subject, setSubject] = useState("");
+  const [destination, setDestination] = useState("");
+  const [intake, setIntake] = useState("");
   const [org, setOrg] = useState("");
   const [topic, setTopic] = useState("");
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [confirmation, setConfirmation] = useState<{ reference: string } | null>(null);
+  const [confirmation, setConfirmation] = useState<{
+    reference: string;
+    emailStatus: "sent" | "pending";
+  } | null>(null);
 
   const days = useMemo(() => getNext14Days(), []);
 
   const canProceed = (() => {
     if (step === 0) return !!meetingType;
     if (step === 1) return !!selectedDate && !!selectedTime;
-    if (step === 2) return name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
+    if (step === 2) {
+      return name.trim().length > 1 && /\S+@\S+\.\S+/.test(email) && privacyConsent;
+    }
     return true;
   })();
 
@@ -120,12 +132,21 @@ function ScheduleMeetingDialog({ onOpenChange }: { onOpenChange: (v: boolean) =>
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           meetingType,
-          requestedDate: selectedDate?.toISOString(),
+          requestedDate: selectedDate
+            ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`
+            : undefined,
           requestedTime: selectedTime,
           contactName: name,
           contactEmail: email,
+          whatsapp: whatsapp || undefined,
+          country: country || undefined,
+          studyLevel: studyLevel || undefined,
+          subject: subject || undefined,
+          destination: destination || undefined,
+          intake: intake || undefined,
           organization: org || undefined,
           topic: topic || undefined,
+          privacyConsent,
         }),
       });
       const json = await res.json();
@@ -138,7 +159,10 @@ function ScheduleMeetingDialog({ onOpenChange }: { onOpenChange: (v: boolean) =>
         setSubmitting(false);
         return;
       }
-      setConfirmation({ reference: json.data?.reference || "" });
+      setConfirmation({
+        reference: json.data?.reference || "",
+        emailStatus: json.data?.emailStatus === "sent" ? "sent" : "pending",
+      });
       setStep(3);
     } catch {
       setSubmitError("Network error. Please try again or email directly.");
@@ -351,6 +375,68 @@ function ScheduleMeetingDialog({ onOpenChange }: { onOpenChange: (v: boolean) =>
                       />
                     </div>
                   </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
+                        WhatsApp (optional)
+                      </label>
+                      <input
+                        type="tel"
+                        value={whatsapp}
+                        onChange={(e) => setWhatsapp(e.target.value)}
+                        placeholder="+880 1…"
+                        className="mt-1 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
+                        Country (optional)
+                      </label>
+                      <input
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        placeholder="Current country"
+                        className="mt-1 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+                  </div>
+                  {meetingType === "education" && (
+                    <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-3">
+                      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-blue-700">
+                        Study preferences (optional)
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <input
+                          value={studyLevel}
+                          onChange={(e) => setStudyLevel(e.target.value)}
+                          aria-label="Study level"
+                          placeholder="Study level"
+                          className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                        <input
+                          value={subject}
+                          onChange={(e) => setSubject(e.target.value)}
+                          aria-label="Subject or programme"
+                          placeholder="Subject or programme"
+                          className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                        <input
+                          value={destination}
+                          onChange={(e) => setDestination(e.target.value)}
+                          aria-label="Destination country"
+                          placeholder="Destination country"
+                          className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                        <input
+                          value={intake}
+                          onChange={(e) => setIntake(e.target.value)}
+                          aria-label="Preferred intake"
+                          placeholder="Preferred intake"
+                          className="w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-ink-500">
                       Organization (optional)
@@ -383,6 +469,18 @@ function ScheduleMeetingDialog({ onOpenChange }: { onOpenChange: (v: boolean) =>
                     at {selectedTime} · {TIMEZONE}
                   </div>
 
+                  <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-ink-200 p-3 text-xs leading-relaxed text-ink-600">
+                    <input
+                      type="checkbox"
+                      checked={privacyConsent}
+                      onChange={(e) => setPrivacyConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-ink-300 text-blue-700"
+                    />
+                    <span>
+                      I consent to Alaminn.info storing these details to review and respond to this meeting request. *
+                    </span>
+                  </label>
+
                   {submitError && (
                     <div className="rounded-xl border border-red-200 bg-red-50/70 p-3 text-xs font-medium leading-relaxed text-red-700">
                       {submitError}
@@ -413,9 +511,13 @@ function ScheduleMeetingDialog({ onOpenChange }: { onOpenChange: (v: boolean) =>
                     <strong className="font-semibold text-ink-800">
                       {selectedDate?.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
                     </strong>{" "}
-                    at <strong className="font-semibold text-ink-800">{selectedTime}</strong>. A
-                    confirmation with the meeting link will arrive at{" "}
-                    <strong className="font-semibold text-ink-800">{email}</strong> within 24 hours.
+                    at <strong className="font-semibold text-ink-800">{selectedTime}</strong>. This is a
+                    request, not a confirmed appointment. The team will confirm availability within one business day.
+                    {confirmation?.emailStatus === "sent" ? (
+                      <> A receipt was sent to <strong className="font-semibold text-ink-800">{email}</strong>.</>
+                    ) : (
+                      <> Email delivery is pending, so please keep the reference below.</>
+                    )}
                   </p>
                   {confirmation?.reference && (
                     <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-ink-200 bg-ink-50/70 px-3 py-1.5 text-[11px] font-semibold text-ink-700">

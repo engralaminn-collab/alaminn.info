@@ -99,7 +99,7 @@ export async function setSessionCookie(user: { id: string; email: string; name: 
   const store = await cookies();
   store.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: env().isProd,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_SEC,
@@ -195,6 +195,27 @@ export function getSessionFromRequest(req: NextRequest): Session | null {
 }
 
 /**
+ * Reject browser cross-site state-changing requests. SameSite=Lax is the
+ * primary cookie control; Origin/Sec-Fetch-Site validation adds defense in
+ * depth without exposing a token to JavaScript. Non-browser server requests
+ * may omit both headers and still require a valid signed session.
+ */
+export function isCrossSiteMutation(req: NextRequest): boolean {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) return false;
+  if (req.headers.get("sec-fetch-site") === "cross-site") return true;
+
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  try {
+    const requestOrigin = req.nextUrl.origin;
+    const configuredOrigin = new URL(env().siteUrl).origin;
+    return origin !== requestOrigin && origin !== configuredOrigin;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Route-handler auth guard. Returns the session if the user has `perm`,
  * otherwise returns a 401/403 NextResponse.
  *
@@ -207,6 +228,16 @@ export async function requirePermission(
   req: NextRequest,
   perm: import("@/lib/rbac").Permission
 ): Promise<{ denied: true; response: Response } | { denied: false; session: Session }> {
+  if (isCrossSiteMutation(req)) {
+    return {
+      denied: true,
+      response: new Response(
+        JSON.stringify({ success: false, message: "Cross-site request rejected.", data: null, meta: {}, errors: ["csrf_origin_rejected"] }),
+        { status: 403, headers: { "content-type": "application/json" } }
+      ),
+    };
+  }
+
   const session = getSessionFromRequest(req);
   if (!session) {
     return {

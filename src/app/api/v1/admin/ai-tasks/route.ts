@@ -42,19 +42,25 @@ export async function POST(req: NextRequest) {
   if (!b.workflow || !b.objective || !b.prompt) {
     return fail("workflow, objective, prompt are required.", ["missing_fields"]);
   }
+  const workflow = String(b.workflow).trim().slice(0, 100);
+  const objective = String(b.objective).trim().slice(0, 500);
+  const prompt = String(b.prompt).trim().slice(0, 12_000);
+  if (!workflow || !objective || !prompt) {
+    return fail("workflow, objective, prompt are required.", ["missing_fields"], 422);
+  }
   try {
     const task = await db.aiTask.create({
       data: {
         requesterId: guard.session.userId,
-        workflow: String(b.workflow),
-        project: b.project ? String(b.project) : null,
-        objective: String(b.objective),
-        prompt: String(b.prompt),
-        sensitivity: b.sensitivity ? String(b.sensitivity) : "internal",
-        outputFormat: b.outputFormat ? String(b.outputFormat) : "markdown",
-        approvalRequired: b.approvalRequired !== false,
+        workflow,
+        project: b.project ? String(b.project).trim().slice(0, 160) : null,
+        objective,
+        prompt,
+        sensitivity: b.sensitivity ? String(b.sensitivity).trim().slice(0, 30) : "internal",
+        outputFormat: "markdown",
+        approvalRequired: true,
         deadline: b.deadline ? new Date(String(b.deadline)) : null,
-        status: "draft",
+        status: "queued",
       },
     });
     await writeAudit(guard.session, "ai_task.create", "AiTask", task.id, { workflow: task.workflow });

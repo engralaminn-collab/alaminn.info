@@ -13,7 +13,7 @@
  * The dialog explains the ALO Education handoff and requires explicit
  * consent before transferring.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Send,
   Loader2,
@@ -75,14 +75,6 @@ export function ReferralCta({
   const [consented, setConsented] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (phase === "idle") {
-      setConsented(false);
-      setErrorMsg(null);
-      setRedirectUrl(null);
-    }
-  }, [phase]);
 
   const context: ReferralContext = {
     courseSlug,
@@ -171,7 +163,12 @@ export function ReferralCta({
       <Dialog
         open={phase !== "idle"}
         onOpenChange={(open) => {
-          if (!open) setPhase("idle");
+          if (!open) {
+            setPhase("idle");
+            setConsented(false);
+            setErrorMsg(null);
+            setRedirectUrl(null);
+          }
         }}
       >
         <DialogContent className="max-w-[480px] overflow-hidden rounded-2xl">

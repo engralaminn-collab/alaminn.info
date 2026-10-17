@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { managedMetadata } from "@/lib/managed-seo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/site/public-chrome";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Projects & Case Studies",
-  description:
-    "Projects and case studies across operations, sales, education, AI, CRM and digital transformation.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return managedMetadata("projects", {
+    title: "Projects & Case Studies",
+    description: "Projects and case studies across operations, sales, education, AI, CRM and digital transformation.",
+  });
+}
 
 export default async function ProjectsPage() {
   const [projects, caseStudies] = await Promise.all([

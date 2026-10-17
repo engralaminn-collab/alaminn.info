@@ -13,7 +13,8 @@
  *
  * Idempotent: uses upsert by slug. Safe to run multiple times.
  */
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma-client";
 
 interface CountrySeed {
   slug: string;
@@ -907,7 +908,7 @@ export async function seedExtraCountries(db: PrismaClient): Promise<void> {
 
 // Allow standalone execution
 if (require.main === module) {
-  const db = new PrismaClient();
+  const db = createPrismaClient(process.env.DATABASE_URL || "file:./db/custom.db");
   seedExtraCountries(db)
     .then(() => db.$disconnect())
     .catch((e) => {

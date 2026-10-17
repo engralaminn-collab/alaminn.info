@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { managedMetadata } from "@/lib/managed-seo";
 import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
 import { Hero } from "@/components/site/sections/hero";
@@ -30,6 +32,13 @@ import { AnalyticsInit } from "@/components/site/analytics-init";
 import type { LatestUpdate } from "@/lib/site-data";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return managedMetadata("home", {
+    title: "Executive Operations, Growth & AI Systems",
+    description: "Al Aminn transforms strategy into scalable operations, growth and intelligent systems across business operations, international education, CRM and AI automation.",
+  });
+}
 
 /**
  * Public homepage data fetch.

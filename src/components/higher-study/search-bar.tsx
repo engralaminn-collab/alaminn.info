@@ -66,9 +66,11 @@ export function SearchBar({
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync external value -> internal input (e.g. when URL changes).
+  // Sync external value -> internal input (e.g. when URL changes). Deferring
+  // avoids a synchronous state cascade during the effect commit.
   useEffect(() => {
-    setInternal(value);
+    const timer = window.setTimeout(() => setInternal(value), 0);
+    return () => window.clearTimeout(timer);
   }, [value]);
 
   // Debounced onChange.
@@ -91,12 +93,15 @@ export function SearchBar({
 
   // Open suggestions when input has >= 2 chars and suggestions exist.
   useEffect(() => {
-    if (internal.trim().length >= 2 && suggestions.length > 0) {
-      setOpen(true);
-      setActiveIdx(-1);
-    } else {
-      setOpen(false);
-    }
+    const timer = window.setTimeout(() => {
+      if (internal.trim().length >= 2 && suggestions.length > 0) {
+        setOpen(true);
+        setActiveIdx(-1);
+      } else {
+        setOpen(false);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [internal, suggestions.length]);
 
   // Click-outside to close.

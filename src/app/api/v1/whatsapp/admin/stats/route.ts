@@ -5,7 +5,7 @@
  * admin dashboard. Shows real data — no fake metrics. When data is
  * unavailable, returns null (the UI shows "Data unavailable").
  *
- * Requires `ai_tasks.view` permission.
+ * Requires the dedicated `whatsapp.view` permission.
  */
 import { NextRequest } from "next/server";
 import { requirePermission } from "@/lib/auth";
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  const guard = await requirePermission(req, "ai_tasks.view");
+  const guard = await requirePermission(req, "whatsapp.view");
   if (guard.denied) return guard.response;
 
   const cfg = whatsappConfig();
@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
       apiConfigured: cfg.apiConfigured,
       apiPhoneNumberId: cfg.apiConfigured ? "configured" : null,
       webhookVerifyToken: cfg.webhookVerifyToken ? "configured" : null,
+      webhookSignatureVerification: cfg.appSecret ? "configured" : null,
       displayNumber: cfg.display,
       callNumber: cfg.number,
       metrics: {

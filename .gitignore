@@ -64,6 +64,7 @@ Thumbs.db
 # ─── Misc ───────────────────────────────────────────────────────────
 *.tsbuildinfo
 SHA256SUMS-NEW.txt
+alaminn-info-production-final.zip
 
 # ─── Prisma CLI SQLite default location (dev DB) ────────────────────
 prisma/db/

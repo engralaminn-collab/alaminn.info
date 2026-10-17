@@ -24,9 +24,8 @@ export function whatsappConfig() {
     apiPhoneNumberId: e.whatsappApiPhoneNumberId,
     apiToken: e.whatsappApiToken,
     webhookVerifyToken: e.whatsappWebhookVerifyToken,
+    appSecret: e.whatsappAppSecret,
     aiMode: e.whatsappAiMode,
-    aiProvider: e.whatsappAiProvider,
-    aiModel: e.whatsappAiModel,
   };
 }
 
@@ -57,7 +56,7 @@ export function buildWhatsappUrl(message?: string): string {
  */
 export function buildWhatsappHandoffUrl(conversationToken: string): string {
   const msg =
-    `Hi, I'm Alaminn AI. I'd like to continue our conversation on WhatsApp. ` +
+    `Hi, I'm Al-Amin's AI Assistant. I'd like to continue our conversation on WhatsApp. ` +
     `Reference: ${conversationToken}`;
   return buildWhatsappUrl(msg);
 }
@@ -116,7 +115,7 @@ export type WhatsappMessageStatus =
  * AI agent operational status (shown in admin panel).
  */
 export type WhatsappAgentStatus =
-  | "CONNECTED"        // API configured + AI mode ACTIVE
+  | "CONFIGURED_UNVERIFIED" // credentials present; provider exchange not proven here
   | "DISCONNECTED"     // API not configured
   | "ERROR"            // Last operation failed
   | "REQUIRES_AUTH"    // Webhook verify token missing
@@ -126,9 +125,9 @@ export type WhatsappAgentStatus =
 export function getAgentStatus(): WhatsappAgentStatus {
   const cfg = whatsappConfig();
   if (cfg.aiMode === "PAUSED") return "PAUSED";
-  if (!cfg.webhookVerifyToken) return "REQUIRES_AUTH";
+  if (!cfg.webhookVerifyToken || !cfg.appSecret) return "REQUIRES_AUTH";
   if (!cfg.apiConfigured) return "DISCONNECTED";
-  return "CONNECTED";
+  return "CONFIGURED_UNVERIFIED";
 }
 
 /** AI mode labels for the admin UI. */
@@ -141,8 +140,8 @@ export const AI_MODE_LABELS: Record<string, string> = {
 
 /** Agent status labels + colors for the admin UI. */
 export const STATUS_LABELS: Record<WhatsappAgentStatus, { label: string; color: string }> = {
-  CONNECTED: { label: "Connected", color: "emerald" },
-  DISCONNECTED: { label: "Disconnected (dev mode)", color: "amber" },
+  CONFIGURED_UNVERIFIED: { label: "Configured — verification required", color: "amber" },
+  DISCONNECTED: { label: "Not configured", color: "slate" },
   ERROR: { label: "Error", color: "rose" },
   REQUIRES_AUTH: { label: "Requires Auth", color: "orange" },
   PAUSED: { label: "Paused", color: "slate" },

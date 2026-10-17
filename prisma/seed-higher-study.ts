@@ -24,7 +24,8 @@
  *   - Verified ranking bodies (QS, THE) — only used for descriptive context, not fabricated numbers
  */
 
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma-client";
 
 // Allow this file to be either run standalone OR imported as a function.
 // When imported (from prisma/seed.ts), the caller passes its existing db
@@ -39,7 +40,7 @@ function getDb(prisma?: PrismaClient): PrismaClient {
     return db;
   }
   if (!db) {
-    db = new PrismaClient();
+    db = createPrismaClient(process.env.DATABASE_URL || "file:./db/custom.db");
     _ownsConnection = true;
   }
   return db;

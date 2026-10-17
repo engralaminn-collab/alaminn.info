@@ -2,14 +2,14 @@
  * WhatsAppChatWidget — floating AI chat preview
  * ============================================
  * A floating button that opens a chat panel where users can talk to
- * Alaminn AI directly on the website. The AI previews helps users
+ * Al-Amin's AI Assistant directly on the website. The preview helps users
  * before they switch to WhatsApp.
  *
  * Features:
  *   - Floating button (bottom-right)
  *   - Chat panel with message history
  *   - "Continue on WhatsApp" button in the header
- *   - AI identifies itself as "Alaminn AI"
+ *   - AI identifies itself as "Al-Amin's AI Assistant"
  *   - Rate-limited via the /api/v1/whatsapp/chat endpoint
  *   - Loading states, error handling
  *   - Mobile-responsive
@@ -31,7 +31,7 @@ type ChatMessage = {
 const GREETING: ChatMessage = {
   role: "assistant",
   content:
-    "Hi, I'm Alaminn AI. I can help you explore study-abroad options — universities, courses, scholarships, PhDs, supervisors, and next steps. What would you like to know?",
+    "Hi, I'm Al-Amin's AI Assistant, not Al-Amin himself. I can help you explore study-abroad options — universities, courses, scholarships, PhDs, supervisors, and next steps. What would you like to know?",
   timestamp: new Date().toISOString(),
 };
 
@@ -49,7 +49,20 @@ export function WhatsAppChatWidget() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
+  const [responseMode, setResponseMode] = useState<"verified_rules" | "generative_ai">("verified_rules");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Allow homepage and Higher Study CTAs to open the real chat instead of
+  // routing to a decorative or unrelated page.
+  useEffect(() => {
+    const openAssistant = (event: Event) => {
+      const prompt = (event as CustomEvent<{ prompt?: string }>).detail?.prompt;
+      setOpen(true);
+      if (prompt) setInput(prompt);
+    };
+    window.addEventListener("alaminn:open-ai-chat", openAssistant);
+    return () => window.removeEventListener("alaminn:open-ai-chat", openAssistant);
+  }, []);
 
   // Auto-scroll to bottom on new message
   useEffect(() => {
@@ -99,6 +112,7 @@ export function WhatsAppChatWidget() {
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, reply]);
+      setResponseMode(data?.data?.responseMode === "generative_ai" ? "generative_ai" : "verified_rules");
 
       if (data?.data?.continueOnWhatsappUrl) {
         setHandoffUrl(data.data.continueOnWhatsappUrl);
@@ -139,7 +153,7 @@ export function WhatsAppChatWidget() {
       {open && (
         <div
           role="dialog"
-          aria-label="Alaminn AI chat"
+          aria-label="Al-Amin's AI Assistant chat"
           className={cn(
             "fixed bottom-24 right-6 z-50 flex flex-col",
             "w-[calc(100vw-3rem)] max-w-md h-[60vh] max-h-[600px]",
@@ -154,10 +168,10 @@ export function WhatsAppChatWidget() {
                 <Bot className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-white">Alaminn AI</p>
+                <p className="text-sm font-semibold text-white">Al-Amin&apos;s AI Assistant</p>
                 <p className="text-xs text-green-100">
                   <span className="inline-block h-2 w-2 rounded-full bg-green-300 mr-1" />
-                  Online · AI Assistant
+                  {responseMode === "generative_ai" ? "Generative AI · verified context" : "Verified-data assistant"}
                 </p>
               </div>
             </div>
@@ -253,7 +267,7 @@ export function WhatsAppChatWidget() {
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
                 disabled={loading}
-                aria-label="Message Alaminn AI"
+                aria-label="Message Al-Amin's AI Assistant"
                 className="min-h-[44px] max-h-32 resize-none text-sm"
                 rows={1}
               />

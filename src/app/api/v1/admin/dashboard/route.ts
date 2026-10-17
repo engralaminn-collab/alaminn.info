@@ -22,6 +22,15 @@ export async function GET(req: NextRequest) {
   const guard = await requirePermission(req, "dashboard.view");
   if (guard.denied) return guard.response;
 
+  const dhakaDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Dhaka",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const todayStart = new Date(`${dhakaDate}T00:00:00+06:00`);
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60_000);
+
   const [
     inquiries,
     opportunities,
@@ -33,6 +42,14 @@ export async function GET(req: NextRequest) {
     articlesPublishedCount,
     tasksDueCount,
     openOpportunitiesValue,
+    todayMeetingsCount,
+    todayBookingsCount,
+    newStudentsCount,
+    newLeadsCount,
+    pendingTasksCount,
+    scheduledPostsCount,
+    unreadNotificationsCount,
+    recentEmailFailuresCount,
     recentAuditLogs,
     analyticsSummary,
   ] = await Promise.all([
@@ -69,6 +86,22 @@ export async function GET(req: NextRequest) {
       _sum: { value: true },
       where: { stage: { notIn: ["won", "lost", "archived"] } },
     }),
+    db.meetingRequest.count({
+      where: { requestedDate: { gte: todayStart, lt: tomorrowStart }, status: { notIn: ["cancelled", "declined"] } },
+    }),
+    db.meetingRequest.count({
+      where: { createdAt: { gte: todayStart, lt: tomorrowStart } },
+    }),
+    db.contact.count({
+      where: { createdAt: { gte: todayStart, lt: tomorrowStart }, tags: { contains: "student" } },
+    }),
+    db.inquiry.count({
+      where: { createdAt: { gte: todayStart, lt: tomorrowStart } },
+    }),
+    db.task.count({ where: { status: { in: ["open", "in-progress", "overdue"] } } }),
+    db.article.count({ where: { status: "scheduled" } }),
+    db.notification.count({ where: { read: false } }),
+    db.auditLog.count({ where: { action: "email.failed", createdAt: { gte: todayStart } } }),
     db.auditLog.findMany({
       orderBy: { createdAt: "desc" },
       take: 15,
@@ -129,6 +162,18 @@ export async function GET(req: NextRequest) {
         createdAt: a.createdAt.toISOString(),
         meta: a.meta,
       })),
+      commandCenter: {
+        todayMeetings: todayMeetingsCount,
+        todayBookings: todayBookingsCount,
+        newStudents: newStudentsCount,
+        newLeads: newLeadsCount,
+        unreadMessages: null,
+        unreadMessagesStatus: "NOT_IMPLEMENTED",
+        pendingTasks: pendingTasksCount,
+        scheduledPosts: scheduledPostsCount,
+        unreadNotifications: unreadNotificationsCount,
+        emailFailuresToday: recentEmailFailuresCount,
+      },
       kpis: {
         inquiries: inquiries.length,
         opportunitiesValue: openOpportunitiesValue._sum.value || 0,

@@ -150,26 +150,24 @@ function SearchPaletteContent({
   // ─── Live content search state ──────────────────────────────────────
   const [liveResults, setLiveResults] = useState<LiveContentResult[]>([]);
   const [liveLoading, setLiveLoading] = useState(false);
-  const liveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounced live content fetch
+  // Debounced live content fetch. Abort superseded requests so stale responses
+  // cannot replace results for a newer query.
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
-      setLiveResults([]);
-      setLiveLoading(false);
-      return;
-    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      if (q.length < 2) {
+        setLiveResults([]);
+        setLiveLoading(false);
+        return;
+      }
 
-    setLiveLoading(true);
-
-    if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
-
-    liveTimerRef.current = setTimeout(async () => {
+      setLiveLoading(true);
       try {
         const [articlesRes, projectsRes] = await Promise.all([
-          fetch(`/api/v1/public/articles?q=${encodeURIComponent(q)}`),
-          fetch(`/api/v1/public/projects?q=${encodeURIComponent(q)}`),
+          fetch(`/api/v1/public/articles?q=${encodeURIComponent(q)}`, { signal: controller.signal }),
+          fetch(`/api/v1/public/projects?q=${encodeURIComponent(q)}`, { signal: controller.signal }),
         ]);
         const articlesData = await articlesRes.json();
         const projectsData = await projectsRes.json();
@@ -190,14 +188,15 @@ function SearchPaletteContent({
 
         setLiveResults(results);
       } catch {
-        setLiveResults([]);
+        if (!controller.signal.aborted) setLiveResults([]);
       } finally {
-        setLiveLoading(false);
+        if (!controller.signal.aborted) setLiveLoading(false);
       }
-    }, 300);
+    }, q.length < 2 ? 0 : 300);
 
     return () => {
-      if (liveTimerRef.current) clearTimeout(liveTimerRef.current);
+      window.clearTimeout(timer);
+      controller.abort();
     };
   }, [query]);
 

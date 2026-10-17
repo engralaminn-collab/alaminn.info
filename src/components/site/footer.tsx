@@ -22,28 +22,29 @@ import { BRAND_ICONS, WhatsAppIcon } from "@/components/site/brand-icons";
 
 const FOOTER_NAV = {
   Platform: [
-    { label: "Career & Roles", href: "/career" },
-    { label: "Verified Achievements", href: "/achievements" },
-    { label: "ALO Education Gateway", href: "/alo-education" },
-    { label: "Advisory Services", href: "/services" },
-    { label: "Study Destinations", href: "/destinations" },
-    { label: "News & Insights", href: "/news" },
+    { label: "About & Expertise", href: "/about" },
+    { label: "Impact", href: "/impact" },
+    { label: "Projects", href: "/projects" },
+    { label: "Insights", href: "/insights" },
+    { label: "Higher Study", href: "/higher-study" },
   ],
   Engage: [
-    { label: "Book Consultation", href: "/book" },
-    { label: "AI Student Assistant", href: "/ai-assistant" },
-    { label: "Official Social Hub", href: "/social" },
-    { label: "Command Center", href: "/dashboard" },
-    { label: "Privacy Policy", href: "/privacy" },
-    { label: "Terms & Governance", href: "/terms" },
+    { label: "Work With Me", href: "/work-with-me" },
+    { label: "Schedule a Meeting", href: "/work-with-me#schedule" },
+    { label: "Insights", href: "/insights" },
+    { label: "Higher Study", href: "/higher-study" },
+    { label: "Contact", href: "/work-with-me#inquiry" },
   ],
   Ecosystem: [
-    { label: "ALO Education", href: "https://aloeducation.com" },
-    { label: "ALO Labs", href: "/#alo-labs" },
-    { label: "TECH360", href: "/#projects" },
-    { label: "English AI", href: "/#projects" },
-    { label: "ICLA Global Academy", href: "/#projects" },
+    { label: "ALO Education", href: "#projects" },
+    { label: "ALO Labs", href: "#alo-labs" },
+    { label: "TECH360", href: "#projects" },
+    { label: "English AI", href: "#projects" },
+    { label: "ICLA Global Academy", href: "#projects" },
   ],
+  // "Legal" column is rendered separately by <LegalModals /> so the four
+  // links open accessible Radix Dialog modals instead of navigating to
+  // separate routes (single-route constraint).
 };
 
 // Footer icon resolver — maps the string icon key from the centralized

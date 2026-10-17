@@ -4,15 +4,11 @@ import Link from "next/link";
 import { Sparkles, ArrowRight, Lock } from "lucide-react";
 
 /**
- * AIAdvisor — premium "Ask Alaminn" section.
+ * AIAdvisor — entry point for Al-Amin's AI Assistant.
  *
- * Presents the AI advisor as part of the Alaminn brand (not a generic
- * chatbot). Shows real example prompts that route to existing pages
- * (/higher-study/scholarships, /contact, /admin/ai-assistant).
- *
- * CRITICAL: Does NOT fabricate AI output. The "Ask Alaminn" CTA routes
- * to /contact (for prospective students) or /admin/ai-assistant (for
- * authenticated staff). No fake chat responses are rendered.
+ * The primary CTA opens the real website chat widget. Research shortcuts
+ * continue to route to source-backed pages, and a separate human-advisor CTA
+ * remains available. No simulated chat output is rendered in this section.
  */
 
 const SUGGESTIONS = [
@@ -47,7 +43,7 @@ export function AIAdvisor() {
   return (
     <section
       id="ai-advisor"
-      aria-label="Ask Alaminn AI advisor"
+      aria-label="Ask Al-Amin's AI Assistant"
       className="relative py-20 lg:py-32 surface-ink"
     >
       <div className="max-w-6xl mx-auto px-6 sm:px-10 lg:px-16">
@@ -64,7 +60,7 @@ export function AIAdvisor() {
               Don&apos;t navigate this alone.
               <br />
               <span className="italic font-serif" style={{ fontFamily: "var(--font-dm-serif), Georgia, serif" }}>
-                Ask Alaminn.
+                Ask Al-Amin&apos;s AI Assistant.
               </span>
             </h2>
 
@@ -92,6 +88,14 @@ export function AIAdvisor() {
 
             {/* Honesty note + CTA */}
             <div className="flex flex-wrap items-center gap-4 pt-8 border-t border-white/10">
+              <button
+                type="button"
+                className="btn-editorial btn-editorial-primary"
+                onClick={() => window.dispatchEvent(new CustomEvent("alaminn:open-ai-chat"))}
+              >
+                Ask the AI assistant
+                <Sparkles className="w-4 h-4" />
+              </button>
               <Link
                 href="/contact"
                 className="btn-editorial btn-editorial-primary"

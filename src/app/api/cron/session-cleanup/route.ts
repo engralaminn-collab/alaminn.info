@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * Recommended cPanel cron schedule: not required. If you add server-side
  * session storage in the future, schedule `0 5 * * *` (daily at 05:00).
  *
- * Auth: requires `x-cron-secret` header (or `?secret=` query) matching the
+ * Auth: requires `x-cron-secret` header matching the
  * `CRON_SECRET` environment variable. Returns 401 on auth failure, 503 if
  * the server is misconfigured (no CRON_SECRET).
  */

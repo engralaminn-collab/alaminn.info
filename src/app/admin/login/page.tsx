@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Lock, Mail } from "lucide-react";
+import { Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,10 +28,15 @@ export default function AdminLoginPage() {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, twoFactorCode: needsTwoFactor ? twoFactorCode : undefined }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
+        if (Array.isArray(json.errors) && json.errors.includes("two_factor_required")) {
+          setNeedsTwoFactor(true);
+          setError(json.message || "Enter your authenticator code.");
+          return;
+        }
         throw new Error(json.message || "Login failed.");
       }
       router.replace("/admin");
@@ -98,9 +105,31 @@ export default function AdminLoginPage() {
                 />
               </div>
             </div>
+            {needsTwoFactor && (
+              <div className="space-y-2">
+                <Label htmlFor="two-factor-code">Authenticator or recovery code</Label>
+                <div className="relative">
+                  <ShieldCheck className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="two-factor-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    required
+                    value={twoFactorCode}
+                    onChange={(event) => setTwoFactorCode(event.target.value)}
+                    className="pl-9 font-mono"
+                    disabled={loading}
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Use the current six-digit code from your authenticator app, or one unused recovery code.</p>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full" disabled={loading || !email || !password}>
+            <Button type="submit" className="w-full" disabled={loading || !email || !password || (needsTwoFactor && !twoFactorCode)}>
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Sign In
             </Button>

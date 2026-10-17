@@ -1,8 +1,8 @@
 # Alaminn.info — Automated Security Test Report
 
-**Date:** 2026-09-30T02:18:07.903Z  
-**Target:** http://localhost:3000 (live dev server)  
-**Script:** `scripts/security-tests.ts` (`bun run security:test`)  
+**Date:** 2026-10-17T19:51:38.824Z
+**Target:** http://127.0.0.1:3000 (live application server)
+**Script:** `scripts/security-tests.ts` (`npm run test:security`)
 **Stack:** Next.js 16 App Router, TypeScript, Prisma + SQLite, custom HMAC session cookies.
 
 ## Summary
@@ -22,7 +22,7 @@
 | # | Test | Severity | Result | Observed |
 |---|------|----------|--------|----------|
 | 8 | Header security | medium | PASS | XCTO=nosniff, XFO=DENY, RP=strict-origin-when-cross-origin, CSP=present |
-| 9 | Clickjacking | medium | PASS | XFO=DENY, CSP=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests |
+| 9 | Clickjacking | medium | PASS | XFO=DENY, CSP=default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests |
 | 10 | Directory traversal | critical | PASS | HTTP 404, /etc/passwd content leaked=false |
 | 11 | Open redirect | medium | PASS | /api/redirect?url=https://evil.example.com → 404 (no redirect) \| /api/v1/redirect?url=https://evil.example.com → 404 (no redirect) \| /redirect?url=https://evil.example.com → 404 (no redirect) \| /api/v1/auth/redirect?next=https://evil.example.com → 404 (no redirect) \| /api/v1/newsletter/redirect?url=https://evil.example.com → 404 (no redirect) |
 | 4 | IDOR (admin dashboard) | critical | PASS | HTTP 401 |
@@ -30,7 +30,7 @@
 | 18 | Cookie tampering | critical | PASS | alaminn_session=fakepayload.fakesignatur → 401, alaminn_session=tampered.user.role.99999 → 401, alaminn_session= → 401, alaminn_session=AAAAAAAA.BBBBBBBB → 401 |
 | 6 | Broken authentication | high | PASS | HTTP 422 |
 | 14 | Mass assignment | critical | PASS | HTTP 200, returned role=VIEWER |
-| 7 | Cookie security | high | PASS | HttpOnly=true, SameSite=true, Secure=false |
+| 7 | Cookie security | high | PASS | HttpOnly=true, SameSite=true, Secure=true |
 | 16 | Session fixation | high | PASS | HTTP 200, new cookie issued=true |
 | 20 | Malformed JSON | low | PASS | HTTP 400 |
 | 21 | File upload abuse | medium | PASS | HTTP 400 |
@@ -64,7 +64,7 @@
 
 **Expected:** X-Frame-Options: DENY (or CSP frame-ancestors)
 
-**Observed:** XFO=DENY, CSP=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
+**Observed:** XFO=DENY, CSP=default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
 
 **Details:** Clickjacking protection present (XFO=DENY, CSP frame-ancestors=true).
 
@@ -160,9 +160,9 @@
 
 **Expected:** HttpOnly + SameSite present (Secure in production only)
 
-**Observed:** HttpOnly=true, SameSite=true, Secure=false
+**Observed:** HttpOnly=true, SameSite=true, Secure=true
 
-**Details:** Session cookie has HttpOnly + SameSite. Secure=false (dev environment, will be true in production). Cookie: alaminn_session=cmunh72bm0000nzhrgh731kg9.VIEWER.1790763487.103b2a47d0ea2600f1be3b9bc8961d720dd6ff4150a28af1acbb76c9c1f5...
+**Details:** Session cookie has HttpOnly + SameSite. Secure=true (dev environment, will be true in production). Cookie: alaminn_session=cmvctbejr0000tvnz2q8i8co2.VIEWER.1792295498.c1effa0849d77ab13adff8cd4d1c1c744075f29387c66f78c281ce98f9d1...
 
 ---
 
@@ -371,7 +371,7 @@ following hardening items would further reduce risk before production:
 - **Test 22 (Brute force)** locks out the test IP for 15 minutes.
   The script runs this test LAST so the lockout does not interfere
   with other tests. To re-run the suite, wait 15 minutes for the
-  lockout to expire (or restart the dev server to reset the
+  lockout to expire (or restart the application server to reset the
   in-memory attempt counter).
 - **Test 7 (Cookie security)** shows `Secure=false` — this is
   expected in dev (`NODE_ENV !== 'production'`). The code path is
@@ -390,7 +390,7 @@ following hardening items would further reduce risk before production:
 
 ## Test Methodology
 
-Each test makes one or more HTTP requests against the live dev server,
+Each test makes one or more HTTP requests against the live application server,
 observes the response (status, headers, body), and compares against the
 expected behavior. Tests are honest — failures are reported as failures.
 The goal is to KNOW the security posture, not to fake passing tests.
@@ -408,10 +408,10 @@ rate limiters (5 inquiries/60s/IP and 5 failed logins/15min/IP):
 The script creates a temporary low-privilege user (`security-test@example.com`,
 role=VIEWER) and may insert inquiries with email `security-test@example.com`.
 Both are deleted at the end of the run. The script also deletes any
-AuditLog rows created by the dev server during the test run (matched by
+AuditLog rows created by the application server during the test run (matched by
 createdAt > a cutoff timestamp captured before the tests start). No
 production data is touched.
 
 ---
 
-_Generated by `bun run security:test`_
+_Generated by `npm run test:security`_

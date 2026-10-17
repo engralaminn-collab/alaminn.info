@@ -138,18 +138,6 @@ export function EnglishTestRunner({ slug, className }: EnglishTestRunnerProps) {
     };
   }, [slug]);
 
-  // Countdown timer.
-  useEffect(() => {
-    if (phase !== "running") return;
-    if (secondsLeft <= 0) {
-      handleSubmit();
-      return;
-    }
-    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSubmit is stable via useCallback but adding it would re-trigger the timer every render
-  }, [phase, secondsLeft]);
-
   const handleAnswer = useCallback((questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   }, []);
@@ -184,6 +172,20 @@ export function EnglishTestRunner({ slug, className }: EnglishTestRunnerProps) {
       setPhase("error");
     }
   }, [test, slug, answers]);
+
+  // Countdown timer. Declared after handleSubmit so the compiler can preserve
+  // the callback's dependency semantics.
+  useEffect(() => {
+    if (phase !== "running") return;
+    const timer = window.setTimeout(() => {
+      if (secondsLeft <= 0) {
+        void handleSubmit();
+      } else {
+        setSecondsLeft((current) => current - 1);
+      }
+    }, secondsLeft <= 0 ? 0 : 1000);
+    return () => window.clearTimeout(timer);
+  }, [phase, secondsLeft, handleSubmit]);
 
   const handleRestart = () => {
     setAnswers({});

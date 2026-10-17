@@ -61,7 +61,8 @@ export function ContactFinale() {
   // UTM / referral params captured from the URL on mount (client-only).
   const [utm, setUtm] = useState<UtmParams>({});
   useEffect(() => {
-    setUtm(captureUtmParams());
+    const timer = window.setTimeout(() => setUtm(captureUtmParams()), 0);
+    return () => window.clearTimeout(timer);
   }, []);
   const [form, setForm] = useState<FormState>({
     type: "",

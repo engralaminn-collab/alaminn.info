@@ -2,8 +2,7 @@
  * POST /api/v1/whatsapp/send
  * ==========================
  * Admin-only endpoint for manually sending a WhatsApp message to a lead.
- * Requires `ai_tasks.update` permission (any admin who can manage AI tasks
- * can also send WhatsApp messages).
+ * Requires the dedicated `whatsapp.send` permission.
  *
  * Body: { to: string, text: string }
  */
@@ -16,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const guard = await requirePermission(req, "ai_tasks.update");
+  const guard = await requirePermission(req, "whatsapp.send");
   if (guard.denied) return guard.response;
 
   const body = await readJson<{ to?: string; text?: string }>(req);
@@ -47,12 +46,14 @@ export async function POST(req: NextRequest) {
     }
   );
 
-  if (result.status === "FAILED") {
+  if (!result.actuallySent) {
     return fail(
-      `WhatsApp service is temporarily unavailable. ${result.error || ""}`.trim(),
-      ["send_failed"],
-      502,
-      { status: result.status, actuallySent: result.actuallySent }
+      result.status === "FAILED"
+        ? `WhatsApp provider rejected the send. ${result.error || ""}`.trim()
+        : "WhatsApp Cloud API is not configured. No message was sent.",
+      [result.status === "FAILED" ? "send_failed" : "whatsapp_not_configured"],
+      result.status === "FAILED" ? 502 : 503,
+      { status: result.status, actuallySent: false }
     );
   }
 
@@ -60,11 +61,9 @@ export async function POST(req: NextRequest) {
     {
       messageId: result.messageId,
       status: result.status,
-      actuallySent: result.actuallySent,
+      actuallySent: true,
     },
-    result.actuallySent
-      ? "Message sent."
-      : "Message queued (dev mode — not actually sent). Set WHATSAPP_API_TOKEN to enable real sends.",
+    "Message accepted by WhatsApp Cloud API; delivery confirmation is pending.",
     { toSuffix: normalized.slice(-4) }
   );
 }

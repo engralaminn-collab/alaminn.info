@@ -1677,10 +1677,12 @@ function AiTab({
 
   // Respond to the external "Quick create" trigger from the header button.
   useEffect(() => {
-    if (quickCreateSignal) {
+    if (!quickCreateSignal) return;
+    const timer = window.setTimeout(() => {
       setCreating(true);
       onQuickCreateConsumed?.();
-    }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [quickCreateSignal, onQuickCreateConsumed]);
 
   const submitTask = async () => {
@@ -2119,7 +2121,8 @@ function MeetingsTab({
   }, [statusFilter, meetings]);
 
   useEffect(() => {
-    fetchMeetings();
+    const timer = window.setTimeout(() => { void fetchMeetings(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [fetchMeetings]);
 
   const handleAction = async (

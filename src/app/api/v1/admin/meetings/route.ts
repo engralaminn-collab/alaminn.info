@@ -20,7 +20,30 @@ export async function GET(req: NextRequest) {
     db.meetingRequest.findMany({ where, orderBy: { createdAt: "desc" }, skip, take }),
     db.meetingRequest.count({ where }),
   ]);
-  return ok(items, "Meetings loaded.", { total, page, pageSize, totalPages: Math.ceil(total / pageSize) });
+  const emailLogs = items.length
+    ? await db.auditLog.findMany({
+        where: {
+          action: "meeting.email_status",
+          resource: "MeetingRequest",
+          resourceId: { in: items.map((item) => item.id) },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const emailByMeeting = new Map<string, unknown>();
+  for (const log of emailLogs) {
+    if (!log.resourceId || emailByMeeting.has(log.resourceId)) continue;
+    try {
+      emailByMeeting.set(log.resourceId, log.meta ? JSON.parse(log.meta) : null);
+    } catch {
+      emailByMeeting.set(log.resourceId, null);
+    }
+  }
+  return ok(
+    items.map((item) => ({ ...item, emailDelivery: emailByMeeting.get(item.id) || null })),
+    "Meetings loaded.",
+    { total, page, pageSize, totalPages: Math.ceil(total / pageSize) }
+  );
 }
 
 export async function POST(req: NextRequest) {

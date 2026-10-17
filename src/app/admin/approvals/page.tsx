@@ -42,7 +42,10 @@ export default function AdminApprovalsPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function decide(taskId: string, decision: "approved" | "rejected" | "revision") {
     setActing(taskId);

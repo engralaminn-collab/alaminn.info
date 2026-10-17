@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
  * Body: { to?: string }   (defaults to the current user's email)
  *
  * Sends a minimal test email to verify SMTP / Resend configuration.
- * If no transport is configured, returns 200 with an informational
- * message (does NOT error). Always writes an AuditLog entry.
+ * An unconfigured transport is a blocked operation (HTTP 503), never a
+ * successful send. Every attempt is written to the audit log.
  */
 export async function POST(req: NextRequest) {
   // The existing /api/v1/admin/settings routes use `security_settings.update`
@@ -25,17 +25,21 @@ export async function POST(req: NextRequest) {
   const to = (body?.to || guard.session.email || "").trim();
   if (!to) return fail("No recipient address available.");
 
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to.length > 254) {
+    return fail("Enter a valid recipient address.", ["invalid_recipient"], 422);
+  }
+
   if (!env().emailConfigured) {
-    // Not an error — surface a clear informational message so the admin
-    // knows exactly which env vars to set.
-    await writeAudit(guard.session, "settings.test_email_sent", "Setting", undefined, {
+    await writeAudit(guard.session, "settings.test_email_blocked", "Setting", undefined, {
       to,
       configured: false,
       result: "not_configured",
     });
-    return ok(
-      { sent: false, configured: false },
-      "Email transport not configured. Set SMTP_* env vars."
+    return fail(
+      "Email transport is not configured. Set RESEND_API_KEY or all SMTP_* deployment secrets, then redeploy and retry.",
+      ["email_transport_not_configured"],
+      503,
+      { configured: false, sent: false }
     );
   }
 
@@ -67,13 +71,19 @@ export async function POST(req: NextRequest) {
     html,
   });
 
-  await writeAudit(guard.session, "settings.test_email_sent", "Setting", undefined, {
-    to,
-    configured: true,
-    provider: result.provider,
-    success: result.success,
-    error: result.error || null,
-  });
+  await writeAudit(
+    guard.session,
+    result.success ? "settings.test_email_delivered" : "settings.test_email_failed",
+    "Setting",
+    undefined,
+    {
+      to,
+      configured: true,
+      provider: result.provider,
+      success: result.success,
+      error: result.error || null,
+    }
+  );
 
   if (!result.success) {
     return fail(

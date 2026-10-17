@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearSessionCookie } from "@/lib/auth";
+import { clearSessionCookie, isCrossSiteMutation } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createHash } from "crypto";
 
@@ -22,6 +22,12 @@ function ipHash(req: NextRequest) {
  * Clears the session cookie and logs the event.
  */
 export async function POST(req: NextRequest) {
+  if (isCrossSiteMutation(req)) {
+    return NextResponse.json(
+      { success: false, message: "Cross-site request rejected.", data: null, meta: {}, errors: ["csrf_origin_rejected"] },
+      { status: 403 }
+    );
+  }
   try {
     // Best-effort audit log (we don't strictly need a session here)
     const { getSessionFromRequest } = await import("@/lib/auth");

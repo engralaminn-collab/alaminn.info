@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const { skip, take, page, pageSize } = pagination(req);
 
   const where = {
-    ...searchWhere(q, ["reference", "subject", "message", "currentChallenge", "desiredOutcome"]),
+    ...searchWhere(q, ["reference", "currentChallenge", "desiredOutcome", "notes"]),
     ...(status && status !== "all" ? { status } : {}),
     ...(type && type !== "all" ? { type } : {}),
   };
@@ -30,7 +30,19 @@ export async function GET(req: NextRequest) {
     db.inquiry.findMany({
       where,
       include: {
-        contact: { select: { id: true, fullName: true, email: true, organization: true } },
+        contact: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            organization: true,
+            role: true,
+            country: true,
+            preferredChannel: true,
+            source: true,
+          },
+        },
         createdBy: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -57,7 +69,7 @@ export async function PUT(req: NextRequest) {
   const body = await readJson(req);
   if (!body?.id) return fail("Inquiry ID required.", ["id_required"], 400);
 
-  const allowed = ["status", "assignedToId", "priority", "notes"];
+  const allowed = ["status", "notes"];
   const data: Record<string, unknown> = {};
   for (const key of allowed) {
     if (body[key] !== undefined) data[key] = body[key];

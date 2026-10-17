@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader, ErrorState, EmptyState } from "@/components/admin/page-primitives";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
 import { toast } from "sonner";
-import { Bot, Loader2, Send } from "lucide-react";
+import { AlertTriangle, Bot, Loader2, Send } from "lucide-react";
 
 type AiTask = {
   id: string; workflow: string; objective: string; prompt: string;
@@ -26,7 +26,8 @@ const WORKFLOWS = [
   "operations-audit", "sales-process-review", "crm-requirements-draft",
   "presentation-outline", "speaking-notes", "media-response",
   "monthly-authority-report", "competitor-research", "resource-checklist",
-  "risk-review", "brand-consistency-audit",
+  "risk-review", "brand-consistency-audit", "marketing-campaign-plan",
+  "email-campaign-draft", "messaging-campaign-draft", "video-script-draft",
 ];
 
 export default function AdminAiAssistantPage() {
@@ -52,7 +53,10 @@ export default function AdminAiAssistantPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,7 +70,7 @@ export default function AdminAiAssistantPage() {
         method: "POST",
         body: JSON.stringify({ workflow, objective, prompt, sensitivity, approvalRequired: true }),
       });
-      toast.success("AI task created. It will appear in the Approvals queue once processed.");
+      toast.success("AI task queued. Any generated output remains blocked for human approval.");
       setObjective(""); setPrompt("");
       await load();
     } catch (e) {
@@ -79,9 +83,16 @@ export default function AdminAiAssistantPage() {
   return (
     <div>
       <PageHeader
-        title="AI Assistant"
-        subtitle="Create governed AI tasks. All outputs require human approval before delivery."
+        title="Al-Amin’s AI Assistant"
+        subtitle="Governed task intake with mandatory human review for sensitive communication"
       />
+
+      <div className="mb-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+        <p>
+          Task records enter a queue for the separately deployed AI worker. Execution requires a working generated Prisma client and provider access; neither is assumed here. A queued task is not a generated result, and every persisted output remains blocked for explicit human approval.
+        </p>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

@@ -2,8 +2,8 @@
  * WhatsApp AI — Intent Detection
  * ===============================
  * Classifies user messages into one of 14 supported intents.
- * Uses keyword/regex matching first (fast, deterministic), then
- * falls back to LLM-based classification for ambiguous inputs.
+ * Uses deterministic keyword/regex matching and returns OTHER when no
+ * verified rule matches.
  *
  * Supported intents:
  *   STUDY_DESTINATION    — "Which country is best for..."
@@ -164,11 +164,17 @@ const RULES: IntentRule[] = [
 
 /**
  * Classify a user message into an intent using keyword/regex rules.
- * Returns null if no rule matches (caller should fall back to LLM).
+ * Returns null if no verified rule matches.
  */
 export function classifyIntentKeyword(message: string): WhatsappIntent | null {
   const text = message.trim();
   if (!text) return null;
+  // Destination questions often also contain a study level ("masters") or
+  // institution noun. Prefer the user's explicit country/where question over
+  // those broader course keywords.
+  if (/\b(which|what|best)\s+(countries?|destinations?)\b|\bwhat\s+is\s+the\s+best\s+(?:country|destination)\b|\bwhere\s+(?:can|should|could|to)\s+i\s+study\b/i.test(text)) {
+    return "STUDY_DESTINATION";
+  }
   for (const rule of RULES) {
     for (const pattern of rule.patterns) {
       if (pattern.test(text)) return rule.intent;
@@ -178,11 +184,8 @@ export function classifyIntentKeyword(message: string): WhatsappIntent | null {
 }
 
 /**
- * Classify a user message into an intent. Uses keyword rules first
- * (fast + deterministic), then optionally LLM for ambiguous inputs.
- *
- * The LLM fallback is implemented in agent.ts because it needs the
- * z-ai-web-dev-sdk which is async. This function is pure sync.
+ * Classify a user message with deterministic keyword rules. Ambiguous input
+ * is explicitly classified as OTHER. The function is pure and synchronous.
  */
 export function classifyIntent(message: string): {
   intent: WhatsappIntent;

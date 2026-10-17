@@ -1,67 +1,45 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { processPendingEmailDeliveries } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 /**
- * GET /api/cron/email-queue
- *
- * Reports the email queue state. In this deployment there is no
- * persistent email-queue table — the in-process `email-worker` mini-service
- * (port 3002) handles sending with its own retry+backoff, and the audit
- * log captures each attempt. This endpoint is a placeholder that returns a
- * zero-state summary so the cron scheduler has a consistent surface to hit.
- *
- * Recommended cPanel cron schedule: `15 * * * *` (hourly at :15).
- *
- * Auth: requires `x-cron-secret` header (or `?secret=` query) matching the
- * `CRON_SECRET` environment variable. Returns 401 on auth failure, 503 if
- * the server is misconfigured (no CRON_SECRET).
+ * Retry durable PENDING/RETRYING/FAILED email deliveries.
+ * Authentication is mandatory and provider credentials stay server-side.
  */
 export async function GET(request: NextRequest) {
   const auth = verifyCronAuth(request);
   if (!auth.ok) {
     return NextResponse.json(
-      {
-        success: false,
-        message: "Unauthorized",
-        data: null,
-        meta: {},
-        errors: [auth.error],
-      },
-      { status: auth.status }
+      { success: false, message: "Unauthorized", data: null, meta: {}, errors: [auth.error] },
+      { status: auth.status },
     );
   }
 
   try {
-    const now = new Date();
-    console.log(
-      `[cron:email-queue] queued=0 failed=0 — email-worker mini-service handles queueing+retries`
-    );
-
+    const result = await processPendingEmailDeliveries(25);
     return NextResponse.json({
       success: true,
-      message: "Email queue scan complete.",
-      data: {
-        queued: 0,
-        failed: 0,
-        note: "No persistent email-queue table. The email-worker mini-service (port 3002) handles sending, retries, and audit logging.",
-      },
-      meta: {
-        scannedAt: now.toISOString(),
-      },
+      message: result.configured
+        ? "Durable email retry scan complete."
+        : "Email transport is not configured; queued deliveries were preserved.",
+      data: result,
+      meta: { scannedAt: new Date().toISOString() },
       errors: [],
     });
   } catch (error) {
+    console.error("[cron:email-queue] retry scan failed", error);
     return NextResponse.json(
       {
         success: false,
-        message: "Cron job failed",
+        message: "Email retry scan failed; queued deliveries were preserved.",
         data: null,
         meta: {},
-        errors: [String(error)],
+        errors: [error instanceof Error ? error.message : "unknown_error"],
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

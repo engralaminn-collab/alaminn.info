@@ -9,11 +9,24 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader, ErrorState } from "@/components/admin/page-primitives";
 import { adminFetch, fmtDate } from "@/components/admin/lib";
 import {
-  Users, CheckSquare, Newspaper, TrendingUp, Mail,
-  ArrowUpRight, Activity,
+  CheckSquare, Newspaper, TrendingUp,
+  ArrowUpRight, Activity, CalendarClock, ClipboardList, GraduationCap,
+  UserRoundSearch, Inbox, Bell, AlertTriangle,
 } from "lucide-react";
 
 type DashboardData = {
+  commandCenter: {
+    todayMeetings: number;
+    todayBookings: number;
+    newStudents: number;
+    newLeads: number;
+    unreadMessages: number | null;
+    unreadMessagesStatus: string;
+    pendingTasks: number;
+    scheduledPosts: number;
+    unreadNotifications: number;
+    emailFailuresToday: number;
+  };
   kpis: {
     inquiries: number;
     opportunitiesValue: number;
@@ -123,7 +136,7 @@ export default function AdminDashboardPage() {
   if (loading) {
     return (
       <div>
-        <PageHeader title="Executive Dashboard" subtitle="Aggregated KPIs across your platform" />
+        <PageHeader title="AL-AMIN COMMAND CENTER" subtitle="Live operational records from the application database" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
@@ -135,22 +148,27 @@ export default function AdminDashboardPage() {
   if (error) return <ErrorState message={error} />;
 
   const kpis = data?.kpis;
+  const ops = data?.commandCenter;
   const cards = [
-    { label: "Inquiries", value: kpis?.inquiries ?? 0, icon: Mail, href: "/admin/contacts", tone: "orange" },
-    { label: "Pipeline Value", value: `$${(kpis?.opportunitiesValue ?? 0).toLocaleString()}`, icon: TrendingUp, href: "/admin/contacts", tone: "emerald" },
-    { label: "Tasks Due (7d)", value: kpis?.tasksDue ?? 0, icon: CheckSquare, href: "/admin/tasks", tone: "amber" },
-    { label: "Articles Published", value: kpis?.articlesPublished ?? 0, icon: Newspaper, href: "/admin/articles", tone: "rose" },
-    { label: "Contacts", value: kpis?.contacts ?? 0, icon: Users, href: "/admin/contacts", tone: "blue" },
+    { label: "Today’s Meetings", value: ops?.todayMeetings ?? 0, icon: CalendarClock, href: "/admin/calendar", tone: "orange" },
+    { label: "Today’s Bookings", value: ops?.todayBookings ?? 0, icon: ClipboardList, href: "/admin/bookings", tone: "emerald" },
+    { label: "New Students", value: ops?.newStudents ?? 0, icon: GraduationCap, href: "/admin/students", tone: "blue" },
+    { label: "New Leads", value: ops?.newLeads ?? 0, icon: UserRoundSearch, href: "/admin/leads", tone: "purple" },
+    { label: "Unread Messages · not implemented", value: ops?.unreadMessages ?? "N/A", icon: Inbox, href: "/admin/inbox", tone: "cyan" },
+    { label: "Pending Tasks", value: ops?.pendingTasks ?? 0, icon: CheckSquare, href: "/admin/tasks", tone: "amber" },
+    { label: "Scheduled Posts", value: ops?.scheduledPosts ?? 0, icon: Newspaper, href: "/admin/articles", tone: "rose" },
+    { label: "Notifications", value: ops?.unreadNotifications ?? 0, icon: Bell, href: "/admin/notifications", tone: "teal" },
+    { label: "Email Failures Today", value: ops?.emailFailuresToday ?? 0, icon: AlertTriangle, href: "/admin/email", tone: "rose" },
+    { label: "Pipeline Value", value: `$${(kpis?.opportunitiesValue ?? 0).toLocaleString()}`, icon: TrendingUp, href: "/admin/opportunities", tone: "emerald" },
     { label: "Pending AI Approvals", value: kpis?.pendingApprovals ?? 0, icon: Activity, href: "/admin/approvals", tone: "purple" },
-    { label: "Newsletter Subscribers", value: kpis?.newsletterSubscribers ?? 0, icon: Mail, href: "/admin/settings", tone: "cyan" },
     { label: "Analytics Events (7d)", value: data?.analytics.totalEvents ?? 0, icon: TrendingUp, href: "/admin/analytics", tone: "teal" },
   ];
 
   return (
     <div>
       <PageHeader
-        title="Executive Dashboard"
-        subtitle="Aggregated KPIs and recent activity across your platform"
+        title="AL-AMIN COMMAND CENTER"
+        subtitle="Live operational records and explicit unavailable states across your platform"
         actions={
           <Button asChild variant="outline">
             <Link href="/" target="_blank">View public site <ArrowUpRight className="h-3.5 w-3.5 ml-1" /></Link>
