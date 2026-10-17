@@ -9,7 +9,9 @@ WORKDIR /app
 
 # Copy lockfile + manifest for reproducible installs.
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=optional && npm cache clean --force
+# libSQL's local file driver is delivered as a platform-specific optional
+# package, so optional dependencies must be retained.
+RUN npm ci && npm cache clean --force
 
 # ── Stage 2: builder ───────────────────────────────────────────────
 FROM node:22-alpine AS builder
@@ -18,8 +20,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client (uses schema.prisma — swap to MySQL for prod).
-RUN npx prisma generate
+# Generate the SQLite query-compiler client without native engine downloads.
+# Production refuses an incompatible mysql:// DATABASE_URL at startup.
+RUN npm run db:generate
 
 # Build Next.js (standalone output).
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -43,7 +46,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate-sqlite.mjs ./scripts/migrate-sqlite.mjs
 
 # Create writable dirs for logs/backups.
 RUN mkdir -p storage/logs storage/backups storage/temporary storage/exports db/backups && \
@@ -57,4 +60,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+# Apply checked-in additive SQLite migrations before accepting traffic. The
+# runner refuses unknown/partial schemas and never resets or drops user data.
+CMD ["sh", "-c", "node scripts/migrate-sqlite.mjs && exec node server.js"]

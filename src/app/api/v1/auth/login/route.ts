@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyPassword, setSessionCookie } from "@/lib/auth";
+import { isCrossSiteMutation, verifyPassword, setSessionCookie } from "@/lib/auth";
 import { normalizeRole, ALL_ROLES } from "@/lib/rbac";
 import { createHash } from "crypto";
+import { consumeRecoveryCode, verifyTotpCode } from "@/lib/two-factor";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,9 @@ function ipHash(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    if (isCrossSiteMutation(req)) {
+      return fail("Cross-site request rejected.", ["csrf_origin_rejected"], 403);
+    }
     const hash = ipHash(req);
     const now = Date.now();
     const entry = loginAttempts.get(hash);
@@ -122,6 +126,63 @@ export async function POST(req: NextRequest) {
     const role = normalizeRole(user.role);
     if (!role || !ALL_ROLES.includes(role)) {
       return fail("Account has an invalid role. Contact an administrator.", ["role_invalid"], 403);
+    }
+
+    // Enforce optional TOTP after the password has been verified. Recovery
+    // codes are one-time and atomically removed before a session is issued.
+    if (user.twoFactorEnabled) {
+      if (!user.twoFactorSecret) {
+        return fail("Two-factor authentication is misconfigured. Contact an administrator.", ["two_factor_misconfigured"], 403);
+      }
+      const twoFactorCode = String(body.twoFactorCode || "").trim();
+      if (!twoFactorCode) {
+        return fail("Enter the six-digit authenticator code or a recovery code.", ["two_factor_required"], 401);
+      }
+      const totpValid = verifyTotpCode(twoFactorCode, user.twoFactorSecret);
+      const recovery = totpValid
+        ? { valid: false, remaining: user.twoFactorRecoveryCodes }
+        : consumeRecoveryCode(twoFactorCode, user.twoFactorRecoveryCodes);
+      if (!totpValid && !recovery.valid) {
+        const current = entry && now < entry.reset
+          ? entry
+          : { count: 0, reset: now + WINDOW_MS, locked: false, lockUntil: 0 };
+        current.count += 1;
+        if (current.count >= MAX_ATTEMPTS) {
+          current.locked = true;
+          current.lockUntil = now + LOCK_MS;
+        }
+        loginAttempts.set(hash, current);
+        await db.auditLog.create({
+          data: {
+            actorId: user.id,
+            action: "auth.two_factor_failed",
+            resource: "user",
+            resourceId: user.id,
+            meta: JSON.stringify({ attempt: current.count }),
+            ipHash: hash,
+          },
+        }).catch(() => null);
+        return fail("Invalid or expired two-factor code.", ["two_factor_invalid"], 401);
+      }
+      if (recovery.valid) {
+        const consumed = await db.user.updateMany({
+          where: { id: user.id, twoFactorRecoveryCodes: user.twoFactorRecoveryCodes },
+          data: { twoFactorRecoveryCodes: recovery.remaining },
+        });
+        if (consumed.count !== 1) {
+          return fail("That recovery code was already used. Try another code.", ["two_factor_recovery_used"], 401);
+        }
+        await db.auditLog.create({
+          data: {
+            actorId: user.id,
+            action: "auth.two_factor_recovery_used",
+            resource: "user",
+            resourceId: user.id,
+            meta: JSON.stringify({ warning: "A one-time recovery code was consumed." }),
+            ipHash: hash,
+          },
+        }).catch(() => null);
+      }
     }
 
     // Reset failure count on success

@@ -17,7 +17,7 @@ name: CI
 
 on:
   push:
-    branches: ["arena/01a0effa-alaminn-info", "upload-local-project", "main"]
+    branches: ["arena/d6c9102d-alaminn-info", "upload-local-project", "main"]
   pull_request:
     branches: ["upload-local-project", "main"]
 
@@ -62,7 +62,7 @@ jobs:
 
       - name: Create ephemeral database + seed
         run: |
-          npx prisma db push --skip-generate
+          npm run db:migrate:deploy
           npm run db:seed
 
       - name: Typecheck
@@ -85,10 +85,13 @@ jobs:
       - name: Unit + integration tests
         run: npm run test
 
+      - name: Transactional booking workflow
+        env:
+          BOOKING_TEST_BASE: http://localhost:3000
+        run: npm run test:booking
+
       - name: Security suite (22 tests)
         env:
-          # The suite defaults to port 3001 (historical); point it at the
-          # dev server this workflow started on port 3000.
           SECURITY_TEST_BASE: http://localhost:3000
         run: |
           set +e
@@ -149,4 +152,4 @@ jobs:
           echo "Standalone smoke test PASSED"
 
       - name: Build summary
-        run: echo "All CI gates passed — typecheck, lint, 241+ tests, 22 security tests, build + standalone smoke." >> "$GITHUB_STEP_SUMMARY"
+        run: echo "All CI gates passed — typecheck, lint, unit/integration tests, security tests, build + standalone smoke." >> "$GITHUB_STEP_SUMMARY"

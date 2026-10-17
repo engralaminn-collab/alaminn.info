@@ -63,7 +63,6 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "agent-ctx/**",
     "download/**",
     "upload/**",
-    "mini-services/**",
   ],
 }];
 

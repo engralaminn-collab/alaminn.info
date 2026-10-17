@@ -10,6 +10,7 @@
  *   knowledge, generate a response, and send it back via the Cloud API.
  *   All steps are logged to AuditLog for observability.
  */
+import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -47,9 +48,29 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const start = Date.now();
+  const cfg = whatsappConfig();
+  if (!cfg.appSecret) {
+    return NextResponse.json({ error: "webhook_signature_not_configured" }, { status: 503 });
+  }
+
+  const contentLength = Number(req.headers.get("content-length") || "0");
+  if (contentLength > 1_000_000) {
+    return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
+  }
+
+  const rawBody = await req.text();
+  const signature = req.headers.get("x-hub-signature-256") || "";
+  const expected = `sha256=${createHmac("sha256", cfg.appSecret).update(rawBody).digest("hex")}`;
+  const signatureValid =
+    signature.length === expected.length &&
+    timingSafeEqual(Buffer.from(signature, "utf8"), Buffer.from(expected, "utf8"));
+  if (!signatureValid) {
+    return NextResponse.json({ error: "invalid_webhook_signature" }, { status: 401 });
+  }
+
   let payload: unknown;
   try {
-    payload = await req.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
@@ -60,13 +81,62 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, message: "ignored" });
   }
 
-  // Log inbound message (safe — no PII beyond the number hash)
+  // Meta retries webhook deliveries. Do not create duplicate leads/tasks/sends.
+  if (inbound.messageId) {
+    const alreadyProcessed = await db.auditLog.findFirst({
+      where: {
+        action: "whatsapp_message_received",
+        resource: "WhatsApp",
+        resourceId: inbound.messageId,
+      },
+      select: { id: true },
+    });
+    if (alreadyProcessed) {
+      return NextResponse.json({ success: true, message: "duplicate_ignored" });
+    }
+  }
+
+  // Log inbound message (safe — no message content and only a number suffix)
   const logKey = inbound.from.slice(-4);
   await safeAudit("whatsapp_message_received", "WhatsApp", inbound.messageId, {
     fromSuffix: logKey,
     messageLength: inbound.text.length,
     messageType: inbound.type,
+    signatureVerified: true,
   });
+
+  // Human-only, approval-required, and paused modes never send an automatic
+  // response. Queue a real follow-up task and notification instead.
+  if (cfg.aiMode !== "ACTIVE") {
+    const task = await db.task.create({
+      data: {
+        title: `Review WhatsApp message · …${logKey}`,
+        description: `Verified inbound WhatsApp message (${inbound.messageId || "no provider id"}) requires human handling. Message content is not stored in audit metadata.`,
+        priority: "high",
+        status: "open",
+        relatedType: "WhatsApp",
+        relatedId: inbound.messageId || null,
+      },
+    });
+    await db.notification.create({
+      data: {
+        type: "whatsapp",
+        title: "WhatsApp message needs human review",
+        message: `A verified inbound message from …${logKey} was received in ${cfg.aiMode} mode.`,
+        link: "/admin/whatsapp-ai",
+      },
+    });
+    await safeAudit("whatsapp_queued_for_human", "Task", task.id, {
+      fromSuffix: logKey,
+      mode: cfg.aiMode,
+      inboundMessageId: inbound.messageId,
+    });
+    return NextResponse.json({
+      success: true,
+      message: "queued_for_human",
+      data: { mode: cfg.aiMode, actuallySent: false },
+    });
+  }
 
   // Fetch recent conversation history (last 10 messages from this user)
   const history = await loadHistory(inbound.from);
@@ -127,7 +197,7 @@ export async function POST(req: NextRequest) {
 
   // Log the send result
   await safeAudit(
-    sendResult.status === "FAILED" ? "whatsapp_message_failed" : "whatsapp_message_sent",
+    sendResult.actuallySent ? "whatsapp_message_sent" : "whatsapp_message_failed",
     "WhatsApp",
     sendResult.messageId || inbound.messageId,
     {

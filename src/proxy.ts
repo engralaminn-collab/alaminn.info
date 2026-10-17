@@ -40,6 +40,7 @@ import {
   generateRequestId,
   incrementRequestCount,
 } from "@/lib/request-context";
+import { getSessionFromRequest } from "@/lib/auth";
 
 // Note: proxy.ts always runs on the Node.js runtime in Next.js 16,
 // so `export const runtime = "nodejs"` is not needed (and not allowed).
@@ -59,7 +60,9 @@ const SECURITY_HEADERS: Record<string, string> = {
   // policy, migrate to nonce-based CSP (advanced, future work).
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    process.env.NODE_ENV === "production"
+      ? "script-src 'self' 'unsafe-inline'"
+      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
@@ -85,6 +88,31 @@ export function proxy(req: NextRequest) {
   // wrapper) read it via `req.headers.get("x-request-id")`.
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-request-id", requestId);
+  requestHeaders.set("x-pathname", req.nextUrl.pathname);
+
+  // Fail closed before rendering any private admin route. Authentication pages
+  // remain public; every admin API still performs its own database-backed RBAC.
+  const publicAdminPaths = new Set([
+    "/admin/login",
+    "/admin/forgot-password",
+    "/admin/reset-password",
+  ]);
+  if (req.nextUrl.pathname.startsWith("/admin") && !publicAdminPaths.has(req.nextUrl.pathname)) {
+    const session = getSessionFromRequest(req);
+    if (!session) {
+      const login = new URL("/admin/login", req.url);
+      login.searchParams.set("next", req.nextUrl.pathname);
+      const redirect = NextResponse.redirect(login);
+      redirect.headers.set("x-request-id", requestId);
+      for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+        redirect.headers.set(key, value);
+      }
+      if (process.env.NODE_ENV === "production") {
+        redirect.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+      }
+      return redirect;
+    }
+  }
 
   const response = NextResponse.next({
     request: { headers: requestHeaders },

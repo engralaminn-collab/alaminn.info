@@ -1,31 +1,28 @@
-import { PrismaClient } from '@prisma/client'
+import type { PrismaClient } from "@prisma/client";
+import { env } from "@/lib/env";
+import { createPrismaClient } from "@/lib/prisma-client";
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-  __prismaVersion?: string
-}
+  prisma: PrismaClient | undefined;
+  __prismaVersion?: string;
+};
 
-// Bust cache when schema version changes (forces new client after prisma generate)
-const SCHEMA_VERSION = 'v5-analytics-2026-07'
-
-// Force new client creation when version changes
-const cachedVersion = globalForPrisma.__prismaVersion
-const cachedPrisma = globalForPrisma.prisma
+// Bust the development hot-reload cache when schema or adapter strategy changes.
+const SCHEMA_VERSION = "v6-query-compiler-libsql-2026-10";
+const cachedVersion = globalForPrisma.__prismaVersion;
+const cachedPrisma = globalForPrisma.prisma;
 
 if (cachedVersion !== SCHEMA_VERSION && cachedPrisma) {
-  // Disconnect old client and clear cache
-  cachedPrisma.$disconnect().catch(() => {})
-  globalForPrisma.prisma = undefined
+  cachedPrisma.$disconnect().catch(() => {});
+  globalForPrisma.prisma = undefined;
 }
 
 export const db =
-  (globalForPrisma.__prismaVersion === SCHEMA_VERSION && globalForPrisma.prisma)
+  globalForPrisma.__prismaVersion === SCHEMA_VERSION && globalForPrisma.prisma
     ? globalForPrisma.prisma
-    : new PrismaClient({
-        log: ['error', 'warn'],
-      })
+    : createPrismaClient(env().databaseUrl, ["error", "warn"]);
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = db
-  globalForPrisma.__prismaVersion = SCHEMA_VERSION
+if (!env().isProd) {
+  globalForPrisma.prisma = db;
+  globalForPrisma.__prismaVersion = SCHEMA_VERSION;
 }

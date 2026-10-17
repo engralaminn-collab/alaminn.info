@@ -10,7 +10,8 @@ import {
   LogOut, Menu, X, ChevronRight,
   Globe2, MapPin, BookOpen, Award, Library, UserSquare2, Microscope,
   FlaskConical, CalendarDays, GraduationCap, ClipboardList, HelpCircle, Mail,
-  MessageCircle,
+  MessageCircle, Calendar, Inbox, Plug, Share2, UserRoundSearch,
+  Workflow, Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,17 +34,33 @@ const NAV_GROUPS: {
     label: "Overview",
     items: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/admin/calendar", label: "Calendar", icon: Calendar },
       { href: "/admin/notifications", label: "Notifications", icon: Bell },
     ],
   },
   {
     label: "CRM",
     items: [
-      { href: "/admin/contacts", label: "Contacts", icon: Users },
-      { href: "/admin/companies", label: "Companies", icon: Building2 },
       { href: "/admin/meetings", label: "Meetings", icon: CalendarClock },
-      { href: "/admin/notes", label: "Notes", icon: StickyNote },
+      { href: "/admin/bookings", label: "Bookings", icon: ClipboardList },
+      { href: "/admin/students", label: "Students", icon: GraduationCap },
+      { href: "/admin/leads", label: "Leads", icon: UserRoundSearch },
+      { href: "/admin/contacts", label: "Contacts", icon: Users },
+      { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
+      { href: "/admin/opportunities", label: "Opportunities", icon: FolderKanban },
+      { href: "/admin/companies", label: "Companies", icon: Building2 },
       { href: "/admin/tasks", label: "Tasks", icon: CheckSquare },
+      { href: "/admin/follow-ups", label: "Follow-ups", icon: CheckSquare },
+      { href: "/admin/notes", label: "Notes", icon: StickyNote },
+    ],
+  },
+  {
+    label: "Communications",
+    items: [
+      { href: "/admin/inbox", label: "Inbox", icon: Inbox },
+      { href: "/admin/email", label: "Email", icon: Mail },
+      { href: "/admin/whatsapp-ai", label: "WhatsApp", icon: MessageCircle },
+      { href: "/admin/social-media", label: "Social Media", icon: Share2 },
     ],
   },
   {
@@ -55,6 +72,7 @@ const NAV_GROUPS: {
       { href: "/admin/media", label: "Media", icon: ImageIcon },
       { href: "/admin/documents", label: "Documents", icon: FileBarChart },
       { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
+      { href: "/admin/marketing-studio", label: "Marketing Studio", icon: Megaphone },
     ],
   },
   {
@@ -90,14 +108,16 @@ const NAV_GROUPS: {
     label: "AI & Insights",
     items: [
       { href: "/admin/ai-assistant", label: "AI Assistant", icon: Bot },
-      { href: "/admin/whatsapp-ai", label: "WhatsApp AI", icon: MessageCircle },
       { href: "/admin/approvals", label: "Approvals", icon: ShieldCheck },
       { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/admin/architecture", label: "Architecture Maps", icon: Workflow },
     ],
   },
   {
     label: "System",
     items: [
+      { href: "/admin/integrations", label: "Integrations", icon: Plug },
+      { href: "/admin/security", label: "Security", icon: ShieldCheck },
       { href: "/admin/seo", label: "SEO", icon: Search },
       { href: "/admin/audit-logs", label: "Audit Logs", icon: ScrollText },
       { href: "/admin/roles", label: "Roles & Perms", icon: UserCog },

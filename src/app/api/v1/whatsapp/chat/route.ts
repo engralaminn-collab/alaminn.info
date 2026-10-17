@@ -11,6 +11,7 @@
  *
  * Rate limited: 20 messages / 10 min / IP (in-memory).
  */
+import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { processAgentMessage, buildWhatsappHandoffUrl } from "@/lib/whatsapp";
 
@@ -113,7 +114,7 @@ export async function POST(req: NextRequest) {
       : "I'm sorry, I couldn't process that. Please try again.";
 
   // Build a WhatsApp handoff URL (for "Continue on WhatsApp" button)
-  const handoffUrl = buildWhatsappHandoffUrl(response.timestamp.slice(-8));
+  const handoffUrl = buildWhatsappHandoffUrl(randomBytes(8).toString("hex"));
 
   return NextResponse.json({
     success: true,
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
       intent: response.intent,
       intentConfidence: response.intentConfidence,
       usedLlm: response.usedLlm,
+      responseMode: response.usedLlm ? "generative_ai" : "verified_rules",
       identified: response.identified,
       knowledgeFound: response.knowledge?.totalFound ?? 0,
       continueOnWhatsappUrl: handoffUrl,

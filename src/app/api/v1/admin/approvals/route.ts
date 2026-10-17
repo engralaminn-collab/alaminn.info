@@ -51,19 +51,29 @@ export async function POST(req: NextRequest) {
   try {
     const task = await db.aiTask.findUnique({ where: { id: taskId } });
     if (!task) return fail("Task not found.", ["not_found"], 404);
+    if (task.status !== "awaiting-approval" || !task.result?.trim()) {
+      return fail(
+        "Only a persisted AI draft in awaiting-approval status can be reviewed.",
+        ["task_not_ready_for_approval"],
+        409
+      );
+    }
 
-    const approval = await db.aiApproval.create({
-      data: {
-        taskId,
-        reviewerId: guard.session.userId,
-        decision,
-        note: note || null,
-      },
-    });
-
-    // Update task status based on decision
     const newStatus = decision === "approved" ? "approved" : decision === "rejected" ? "rejected" : "revision-requested";
-    await db.aiTask.update({ where: { id: taskId }, data: { status: newStatus, reviewerId: guard.session.userId } });
+    const [approval] = await db.$transaction([
+      db.aiApproval.create({
+        data: {
+          taskId,
+          reviewerId: guard.session.userId,
+          decision,
+          note: note?.trim().slice(0, 2_000) || null,
+        },
+      }),
+      db.aiTask.update({
+        where: { id: taskId },
+        data: { status: newStatus, reviewerId: guard.session.userId },
+      }),
+    ]);
 
     await writeAudit(guard.session, "ai_approval.decide", "AiApproval", approval.id, { taskId, decision });
     return ok(approval, `Approval ${decision}.`, {}, 201);

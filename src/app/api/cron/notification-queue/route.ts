@@ -1,65 +1,37 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyCronAuth } from "@/lib/cron-auth";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/cron/notification-queue
- *
- * Reports the in-app notification queue state. The notification-service
- * (port 3005) is an in-memory service — there is no durable queue to
- * inspect, so this endpoint returns a fixed zero-state summary. It exists
- * to give the cron scheduler a consistent surface across all queue types.
- *
- * Recommended cPanel cron schedule: `0/15 * * * *` (every 15 minutes).
- *
- * Auth: requires `x-cron-secret` header (or `?secret=` query) matching the
- * `CRON_SECRET` environment variable. Returns 401 on auth failure, 503 if
- * the server is misconfigured (no CRON_SECRET).
- */
+/** Reports durable in-application notification state. It does not simulate a
+ * push provider or claim that an external notification was delivered. */
 export async function GET(request: NextRequest) {
   const auth = verifyCronAuth(request);
   if (!auth.ok) {
     return NextResponse.json(
-      {
-        success: false,
-        message: "Unauthorized",
-        data: null,
-        meta: {},
-        errors: [auth.error],
-      },
-      { status: auth.status }
+      { success: false, message: "Unauthorized", data: null, meta: {}, errors: [auth.error] },
+      { status: auth.status },
     );
   }
 
   try {
-    const now = new Date();
-    console.log(
-      `[cron:notification-queue] pending=0 — notification-service is in-memory`
-    );
-
+    const [unread, total, newest] = await Promise.all([
+      db.notification.count({ where: { read: false } }),
+      db.notification.count(),
+      db.notification.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+    ]);
     return NextResponse.json({
       success: true,
-      message: "Notification queue scan complete.",
-      data: {
-        pending: 0,
-        note: "notification-service (port 3005) is in-memory — no durable queue to inspect.",
-      },
-      meta: {
-        scannedAt: now.toISOString(),
-      },
+      message: "Durable notification state loaded.",
+      data: { unread, total, newestAt: newest?.createdAt.toISOString() || null, externalPushProvider: "not_configured" },
+      meta: { scannedAt: new Date().toISOString() },
       errors: [],
     });
   } catch (error) {
     return NextResponse.json(
-      {
-        success: false,
-        message: "Cron job failed",
-        data: null,
-        meta: {},
-        errors: [String(error)],
-      },
-      { status: 500 }
+      { success: false, message: "Notification state check failed.", data: null, meta: {}, errors: [String(error)] },
+      { status: 500 },
     );
   }
 }

@@ -21,6 +21,12 @@ export type AppEnv = {
   databaseUrl: string;
   /** HMAC secret for signing session cookies (>= 32 bytes in production) */
   authSecret: string;
+  /** Whether AUTH_SECRET was explicitly supplied (not the development fallback) */
+  authSecretConfigured: boolean;
+  /** Encryption key for TOTP secrets; falls back to AUTH_SECRET for compatibility */
+  twoFactorEncryptionKey: string;
+  /** Shared secret for scheduler-only cron endpoints */
+  cronSecret: string | null;
   /** SMTP host (e.g. smtp.gmail.com) — leave empty to use dev console transport */
   smtpHost: string | null;
   smtpPort: number | null;
@@ -34,6 +40,9 @@ export type AppEnv = {
   resendApiKey: string | null;
   /** True when email sending is configured (SMTP or Resend) */
   emailConfigured: boolean;
+  /** HMAC secrets for anonymous referral/session identifiers */
+  higherStudyReferralSecret: string;
+  englishLearningReferralSecret: string;
   // ─── WhatsApp AI Agent ─────────────────────────────────────────────
   /** Official WhatsApp number in local format (e.g. "01716609554") */
   whatsappNumber: string;
@@ -45,16 +54,14 @@ export type AppEnv = {
   whatsappBusinessName: string;
   /** Webhook verify token for Meta Cloud API (echoes back on GET verification) */
   whatsappWebhookVerifyToken: string | null;
-  /** Meta Cloud API Phone Number ID — blank = dev mode (no actual sends) */
+  /** Meta app secret used to verify X-Hub-Signature-256 on webhook POSTs */
+  whatsappAppSecret: string | null;
+  /** Meta Cloud API Phone Number ID — blank = no outbound sends */
   whatsappApiPhoneNumberId: string | null;
-  /** Meta Cloud API access token — blank = dev mode */
+  /** Meta Cloud API access token — blank = no outbound sends */
   whatsappApiToken: string | null;
   /** True when WhatsApp Cloud API is fully configured for outbound sending */
   whatsappApiConfigured: boolean;
-  /** AI provider: "zai" (default) or "openai" */
-  whatsappAiProvider: string;
-  /** AI model name */
-  whatsappAiModel: string;
   /** AI mode: "ACTIVE" | "HUMAN_ONLY" | "APPROVAL_REQUIRED" | "PAUSED" */
   whatsappAiMode: "ACTIVE" | "HUMAN_ONLY" | "APPROVAL_REQUIRED" | "PAUSED";
 };
@@ -75,8 +82,14 @@ function buildEnv(): AppEnv {
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || DEV_SITE_URL).replace(/\/$/, "");
 
-  const databaseUrl =
-    process.env.DATABASE_URL || "file:./dev.db";
+  const databaseUrl = process.env.DATABASE_URL || "file:./dev.db";
+  if (!databaseUrl.startsWith("file:")) {
+    throw new Error(
+      "[env] FATAL: DATABASE_URL must use file: because the authoritative Prisma schema is SQLite. " +
+        "A mysql:// production value is incompatible; migrate the complete schema and data under a reviewed runbook before changing providers.",
+    );
+  }
+  const cronSecret = process.env.CRON_SECRET || null;
 
   // AUTH_SECRET — required in production, dev-fallback in development
   const authSecret = process.env.AUTH_SECRET || "";
@@ -95,6 +108,10 @@ function buildEnv(): AppEnv {
     throw new Error(
       "[env] FATAL: AUTH_SECRET must be at least 32 bytes in production."
     );
+  }
+  const twoFactorEncryptionKey = process.env.TWO_FACTOR_ENCRYPTION_KEY || authSecret || DEV_FALLBACK_SECRET;
+  if (isProd && twoFactorEncryptionKey.length < 32) {
+    throw new Error("[env] FATAL: TWO_FACTOR_ENCRYPTION_KEY must be at least 32 bytes when set.");
   }
 
   // SMTP / Resend — at least one must be configured in production for emails
@@ -125,6 +142,14 @@ function buildEnv(): AppEnv {
     );
   }
 
+  const higherStudyReferralSecret = process.env.HIGHER_STUDY_REFERRAL_SECRET || "";
+  const englishLearningReferralSecret = process.env.ENGLISH_LEARNING_REFERRAL_SECRET || "";
+  if (isProd && (higherStudyReferralSecret.length < 32 || englishLearningReferralSecret.length < 32)) {
+    throw new Error(
+      "[env] FATAL: HIGHER_STUDY_REFERRAL_SECRET and ENGLISH_LEARNING_REFERRAL_SECRET must each be at least 32 bytes in production."
+    );
+  }
+
   // ─── WhatsApp AI Agent ────────────────────────────────────────────────
   // OFFICIAL WHATSAPP NUMBER: 01716609554 (Bangladesh)
   // International format: 8801716609554 (used in wa.me deep links)
@@ -143,25 +168,27 @@ function buildEnv(): AppEnv {
 
   const whatsappWebhookVerifyToken =
     process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || null;
+  const whatsappAppSecret = process.env.WHATSAPP_APP_SECRET || null;
   const whatsappApiPhoneNumberId =
     process.env.WHATSAPP_API_PHONE_NUMBER_ID || null;
   const whatsappApiToken = process.env.WHATSAPP_API_TOKEN || null;
   const whatsappApiConfigured = !!(whatsappApiPhoneNumberId && whatsappApiToken);
 
-  const whatsappAiProvider = process.env.WHATSAPP_AI_PROVIDER || "zai";
-  const whatsappAiModel = process.env.WHATSAPP_AI_MODEL || "glm-4.6";
-  const rawAiMode = (process.env.WHATSAPP_AI_MODE || "ACTIVE").toUpperCase();
+  // Safe default: an omitted or unrecognized mode never enables autonomous
+  // sending. ACTIVE must be selected explicitly after provider verification.
+  const rawAiMode = (process.env.WHATSAPP_AI_MODE || "APPROVAL_REQUIRED").toUpperCase();
   const whatsappAiMode: AppEnv["whatsappAiMode"] =
+    rawAiMode === "ACTIVE" ||
     rawAiMode === "HUMAN_ONLY" ||
     rawAiMode === "APPROVAL_REQUIRED" ||
     rawAiMode === "PAUSED"
       ? rawAiMode
-      : "ACTIVE";
+      : "APPROVAL_REQUIRED";
 
-  if (isProd && !whatsappApiConfigured) {
+  if (isProd && (!whatsappApiConfigured || !whatsappAppSecret || !whatsappWebhookVerifyToken)) {
     console.warn(
-      "[env] WARNING: WhatsApp Cloud API not configured (WHATSAPP_API_PHONE_NUMBER_ID + WHATSAPP_API_TOKEN). " +
-        "WhatsApp AI agent will run in dev mode (responses returned in API body, not actually sent)."
+      "[env] WARNING: WhatsApp Cloud API is incomplete. Outbound needs WHATSAPP_API_PHONE_NUMBER_ID + WHATSAPP_API_TOKEN; " +
+        "webhooks also require WHATSAPP_APP_SECRET + WHATSAPP_WEBHOOK_VERIFY_TOKEN. No unverified webhook payload will be processed."
     );
   }
 
@@ -172,6 +199,9 @@ function buildEnv(): AppEnv {
     siteUrl,
     databaseUrl,
     authSecret: authSecret || DEV_FALLBACK_SECRET,
+    authSecretConfigured: Boolean(authSecret && authSecret.length >= 32),
+    twoFactorEncryptionKey,
+    cronSecret,
     smtpHost,
     smtpPort,
     smtpUser,
@@ -180,16 +210,17 @@ function buildEnv(): AppEnv {
     emailReplyTo,
     resendApiKey,
     emailConfigured,
+    higherStudyReferralSecret: higherStudyReferralSecret || "alaminn-hs-development-only-referral-secret",
+    englishLearningReferralSecret: englishLearningReferralSecret || "alaminn-el-development-only-referral-secret",
     whatsappNumber,
     whatsappInternationalNumber,
     whatsappDisplayNumber,
     whatsappBusinessName,
     whatsappWebhookVerifyToken,
+    whatsappAppSecret,
     whatsappApiPhoneNumberId,
     whatsappApiToken,
     whatsappApiConfigured,
-    whatsappAiProvider,
-    whatsappAiModel,
     whatsappAiMode,
   };
 }

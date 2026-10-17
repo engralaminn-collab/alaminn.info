@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { managedMetadata } from "@/lib/managed-seo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PublicPage } from "@/components/site/public-chrome";
 import { ArrowUpRight, Clock, Newspaper, Library, FileText, Download } from "lucide-react";
 
-export const metadata: Metadata = {
-  title: "Insights",
-  description:
-    "Articles, resources, professional posts and updates — practical, evidence-aware content on operations, growth, AI and systems.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return managedMetadata("articles", {
+    title: "Insights",
+    description: "Articles, resources, professional posts and updates — practical, evidence-aware content on operations, growth, AI and systems.",
+  });
+}
 
 const ARTICLE_CATEGORIES: Record<string, string> = {
   "executive-leadership": "Executive Leadership",

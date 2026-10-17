@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { managedMetadata } from "@/lib/managed-seo";
 import { PublicPage } from "@/components/site/public-chrome";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,12 @@ import {
 import { ContactForm } from "./contact-form";
 import { ScheduleButton } from "./schedule-button";
 
-export const metadata: Metadata = {
-  title: "Work With Me",
-  description:
-    "Work with Al Aminn — engagement types, services, collaboration models and scheduling. One conversion-focused page for discovery calls, strategy sessions, partnerships and education advisory.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return managedMetadata("work-with-me", {
+    title: "Work With Me",
+    description: "Work with Al Aminn — engagement types, services, collaboration models and scheduling. One conversion-focused page for discovery calls, strategy sessions, partnerships and education advisory.",
+  });
+}
 
 const ENGAGEMENT_TYPES = [
   {

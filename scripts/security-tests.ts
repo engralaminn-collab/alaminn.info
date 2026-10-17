@@ -2,12 +2,12 @@
  * Alaminn.info — Automated Security Test Suite
  * ============================================
  * Standalone Bun script that runs 22 security tests against the live
- * dev server (http://localhost:3001) and prints a PASS/FAIL report.
+ * application server (http://localhost:3000) and prints a PASS/FAIL report.
  * Also writes a markdown report to docs/security-report.md.
  *
  * Usage:
- *   bun run scripts/security-tests.ts
- *   SECURITY_TEST_BASE=http://127.0.0.1:3001 bun run scripts/security-tests.ts  (override)
+ *   npm run test:security
+ *   SECURITY_TEST_BASE=http://127.0.0.1:3000 npm run test:security  (override)
  *
  * Design notes
  * ------------
@@ -30,7 +30,7 @@
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/auth";
 
-const BASE = process.env.SECURITY_TEST_BASE || "http://127.0.0.1:3001";
+const BASE = process.env.SECURITY_TEST_BASE || "http://127.0.0.1:3000";
 const TEST_EMAIL = "security-test@example.com";
 const TEST_PASSWORD = "TestPassword123!-secure";
 const TEST_USER_NAME = "Security Test User";
@@ -139,7 +139,7 @@ async function cleanupTestInquiries(): Promise<void> {
 /**
  * Delete AuditLog rows created during this test run.
  *
- * The dev server writes AuditLog rows when admin/login/inquiry endpoints
+ * The application server writes AuditLog rows when admin/login/inquiry endpoints
  * are exercised (e.g., failed login attempts, brute-force lockouts, admin
  * access attempts). Without this cleanup, the rows pollute the DB and
  * `db:verify` shows an unexpected AuditLog row count.
@@ -147,7 +147,7 @@ async function cleanupTestInquiries(): Promise<void> {
  * Strategy: capture `auditLogCutoff` (a Date) BEFORE the tests start. After
  * the tests, delete all AuditLog rows with `createdAt > auditLogCutoff`.
  * This preserves any pre-existing AuditLog rows and removes only the ones
- * created during this test run. The dev server runs on the same machine
+ * created during this test run. The application server runs on the same machine
  * (same clock), so there is no clock-skew gap between the cutoff and the
  * server-written timestamps.
  */
@@ -964,7 +964,7 @@ async function main() {
   }
 
   // Capture a cutoff timestamp BEFORE any test runs. AuditLog rows written
-  // by the dev server during the test run will have createdAt > this cutoff,
+  // by the application server during the test run will have createdAt > this cutoff,
   // so we can delete them in cleanup without touching pre-existing rows.
   const auditLogCutoff = new Date();
 
@@ -1096,9 +1096,9 @@ function buildMarkdownReport(tests: TestResult[], passed: number, failed: number
 
   let md = "";
   md += `# Alaminn.info — Automated Security Test Report\n\n`;
-  md += `**Date:** ${date}  \n`;
-  md += `**Target:** ${BASE} (live dev server)  \n`;
-  md += `**Script:** \`scripts/security-tests.ts\` (\`bun run security:test\`)  \n`;
+  md += `**Date:** ${date}\n`;
+  md += `**Target:** ${BASE} (live application server)\n`;
+  md += `**Script:** \`scripts/security-tests.ts\` (\`npm run test:security\`)\n`;
   md += `**Stack:** Next.js 16 App Router, TypeScript, Prisma + SQLite, custom HMAC session cookies.\n\n`;
   md += `## Summary\n\n`;
   md += `| Metric | Value |\n|---|---|\n`;
@@ -1194,7 +1194,7 @@ function buildMarkdownReport(tests: TestResult[], passed: number, failed: number
   md += `- **Test 22 (Brute force)** locks out the test IP for 15 minutes.\n`;
   md += `  The script runs this test LAST so the lockout does not interfere\n`;
   md += `  with other tests. To re-run the suite, wait 15 minutes for the\n`;
-  md += `  lockout to expire (or restart the dev server to reset the\n`;
+  md += `  lockout to expire (or restart the application server to reset the\n`;
   md += `  in-memory attempt counter).\n`;
   md += `- **Test 7 (Cookie security)** shows \`Secure=false\` — this is\n`;
   md += `  expected in dev (\`NODE_ENV !== 'production'\`). The code path is\n`;
@@ -1212,7 +1212,7 @@ function buildMarkdownReport(tests: TestResult[], passed: number, failed: number
   md += `  not covered by this API-level test suite.\n\n`;
 
   md += `## Test Methodology\n\n`;
-  md += `Each test makes one or more HTTP requests against the live dev server,\n`;
+  md += `Each test makes one or more HTTP requests against the live application server,\n`;
   md += `observes the response (status, headers, body), and compares against the\n`;
   md += `expected behavior. Tests are honest — failures are reported as failures.\n`;
   md += `The goal is to KNOW the security posture, not to fake passing tests.\n\n`;
@@ -1227,11 +1227,11 @@ function buildMarkdownReport(tests: TestResult[], passed: number, failed: number
   md += `The script creates a temporary low-privilege user (\`security-test@example.com\`,\n`;
   md += `role=VIEWER) and may insert inquiries with email \`security-test@example.com\`.\n`;
   md += `Both are deleted at the end of the run. The script also deletes any\n`;
-  md += `AuditLog rows created by the dev server during the test run (matched by\n`;
+  md += `AuditLog rows created by the application server during the test run (matched by\n`;
   md += `createdAt > a cutoff timestamp captured before the tests start). No\n`;
   md += `production data is touched.\n\n`;
 
-  md += `---\n\n_Generated by \`bun run security:test\`_\n`;
+  md += `---\n\n_Generated by \`npm run test:security\`_\n`;
   return md;
 }
 

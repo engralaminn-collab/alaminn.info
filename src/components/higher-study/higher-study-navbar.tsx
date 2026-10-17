@@ -17,8 +17,16 @@ import {
   X,
   Send,
   ArrowLeft,
+  ChevronDown,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,16 +48,22 @@ interface HsNavItem {
   icon: LucideIcon;
 }
 
-const HS_NAV: HsNavItem[] = [
+const PRIMARY_HS_NAV: HsNavItem[] = [
   { label: "Universities", href: "/higher-study/global-universities", icon: Building2 },
   { label: "Courses", href: "/higher-study/course-finder", icon: BookOpen },
   { label: "Scholarships", href: "/higher-study/scholarships", icon: Award },
+  { label: "Destinations", href: "/higher-study/destinations", icon: Globe2 },
+];
+
+const MORE_HS_NAV: HsNavItem[] = [
   { label: "PhD & Research", href: "/higher-study/phd-research", icon: FlaskConical },
   { label: "Supervisors", href: "/higher-study/supervisors", icon: UserSearch },
-  { label: "Destinations", href: "/higher-study/destinations", icon: Globe2 },
   { label: "Resources", href: "/higher-study/study-resources", icon: Library },
   { label: "Compare", href: "/higher-study/compare", icon: Columns3 },
+  { label: "Private Planner", href: "/higher-study/planner", icon: ListChecks },
 ];
+
+const HS_NAV = [...PRIMARY_HS_NAV, ...MORE_HS_NAV];
 
 function isActive(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
@@ -108,12 +122,12 @@ export function HigherStudyNavbar() {
             </div>
           </Link>
 
-          {/* Desktop nav — Higher Study links only */}
+          {/* Desktop nav — four primary links and one intentional More menu. */}
           <nav
-            className="hidden items-center gap-0.5 xl:flex"
+            className="hidden items-center gap-0.5 lg:flex"
             aria-label="Higher Study navigation"
           >
-            {HS_NAV.map((item) => {
+            {PRIMARY_HS_NAV.map((item) => {
               const active = isActive(pathname, item.href);
               const Icon = item.icon;
               return (
@@ -140,10 +154,58 @@ export function HigherStudyNavbar() {
                 </Link>
               );
             })}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  "relative inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-[13px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2",
+                  MORE_HS_NAV.some((item) => isActive(pathname, item.href))
+                    ? "text-orange-700"
+                    : "text-ink-700 hover:bg-orange-50 hover:text-orange-700"
+                )}
+              >
+                More
+                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                {MORE_HS_NAV.some((item) => isActive(pathname, item.href)) && (
+                  <motion.span
+                    layoutId="hs-nav-active"
+                    className="absolute inset-x-2 -bottom-0.5 h-0.5 rounded-full bg-orange-500"
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={10}
+                className="w-56 rounded-xl border-ink-200 bg-white p-2 shadow-xl"
+              >
+                {MORE_HS_NAV.map((item) => {
+                  const active = isActive(pathname, item.href);
+                  const Icon = item.icon;
+                  return (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
+                          active
+                            ? "bg-orange-50 text-orange-700"
+                            : "text-ink-700 focus:bg-orange-50 focus:text-orange-700"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                        {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
 
           {/* Apply Now CTA */}
-          <div className="hidden items-center gap-2 xl:flex">
+          <div className="hidden items-center gap-2 lg:flex">
             <Link
               href="/higher-study/apply"
               className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-orange-600 px-4 text-sm font-bold text-white shadow-orange transition-all hover:bg-orange-700 hover:shadow-lg"
@@ -155,7 +217,7 @@ export function HigherStudyNavbar() {
 
           {/* Mobile toggle */}
           <button
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-ink-200 bg-white/70 text-ink-800 xl:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-ink-200 bg-white/70 text-ink-800 lg:hidden"
             onClick={() => setMobileOpen(true)}
             aria-label="Open Higher Study menu"
           >
@@ -171,7 +233,7 @@ export function HigherStudyNavbar() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] xl:hidden"
+            className="fixed inset-0 z-[60] lg:hidden"
           >
             <div
               className="absolute inset-0 bg-ink-950/50 backdrop-blur-sm"

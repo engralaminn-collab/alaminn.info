@@ -20,6 +20,18 @@ export const metadata: Metadata = {
   alternates: { canonical: "/case-studies" },
 };
 
+type CaseStudyListItem = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  outcome: string;
+  evidenceStatus: string;
+  confidentiality: string;
+  readTime: number;
+  featured: boolean;
+};
+
 const CATEGORY_LABEL: Record<string, string> = {
   "education-operations": "Education Operations",
   "ai-crm": "AI & CRM",
@@ -30,7 +42,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export default async function CaseStudiesListingPage() {
-  const caseStudies = await db.caseStudy.findMany({
+  const caseStudies = (await db.caseStudy.findMany({
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
     select: {
       id: true,
@@ -43,7 +55,7 @@ export default async function CaseStudiesListingPage() {
       readTime: true,
       featured: true,
     },
-  });
+  })) as CaseStudyListItem[];
 
   const featured = caseStudies.filter((c) => c.featured);
   const rest = caseStudies.filter((c) => !c.featured);

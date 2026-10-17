@@ -1,153 +1,39 @@
-# Prisma Migrations
+# Database migration policy
 
-This folder is the **source of truth** for database schema changes. It replaces the
-previous `prisma db push` workflow so that schema changes are versioned, reviewable
-and deployable to production via `npx prisma migrate deploy`.
+The authoritative application schema is `prisma/schema.prisma` and its provider is SQLite.
+`prisma/migrations/` therefore contains SQLite migrations only.
 
-## Folder layout
+## Active migrations
 
-```
-prisma/migrations/
-├── migration_lock.toml                  # Locks the dev provider (sqlite)
-├── README.md                            # This file
-├── 00000000000000_initial/              # SQLite (dev) initial migration
-│   └── migration.sql                    #   55 CREATE TABLE statements
-└── 00000000000000_mysql_initial/        # MySQL 8 (production) initial migration
-    └── migration.sql                    #   25 CREATE TABLE statements (see Notes)
-```
+1. `00000000000000_initial` — 55-table SQLite baseline.
+2. `20261017193000_add_password_reset_fields` — additive User password-reset fields and index.
+3. `20261017200000_add_email_delivery_queue` — durable email status and retry queue.
+4. `20261017203000_add_two_factor_auth` — encrypted TOTP state and hashed recovery-code storage.
 
-## Two providers, two schemas
+The historical MySQL draft was removed from the active Prisma migration path and retained at
+`prisma/legacy-migrations/mysql_initial.sql` for forensic reference. It must **not** be applied
+to the SQLite database. The application intentionally refuses a `mysql://` `DATABASE_URL`
+because the checked-in schema, adapter, backup flow, and active migration lock all target SQLite.
 
-This project targets **two databases**:
+## Safe deployment
 
-| Environment | Provider   | Schema file                  | Lock file value |
-|-------------|------------|------------------------------|-----------------|
-| Local dev   | `sqlite`   | `prisma/schema.prisma`       | `sqlite`        |
-| Production  | `mysql`    | `prisma/schema.mysql.prisma` | `mysql`         |
+1. Stop writes or place the application in maintenance mode.
+2. Run `npm run db:backup` and verify the resulting backup.
+3. Run `npm run db:migrate:deploy`; the checked-in runner only performs additive SQLite changes and refuses partial/unknown schemas.
+4. Run `npm run db:migrate:status` and require an up-to-date result.
+5. Run `npm run db:verify` before switching traffic.
+6. Retain both the pre-migration backup and previous application release for rollback.
 
-`prisma/schema.prisma` is the **dev schema** (SQLite, the default Prisma uses).
-`prisma/schema.mysql.prisma` is the **production schema** (MySQL 8, with `@db.*`
-column-type annotations like `VARCHAR(255)`, `DATETIME(3)`, `LONGTEXT`, etc.).
+`npm run db:reset` is intentionally disabled. The migration runner records application history in
+`_alaminn_migrations`, checks SQLite integrity and foreign keys, and does not drop tables or rows.
 
-The two schemas are intentionally separate because SQLite does not understand the
-`@db.*` annotations that MySQL requires for correct column sizing.
+Production migration and restore remain blocked until the operator verifies the actual production
+`DATABASE_URL`, file ownership, free disk space, and backup restoration on the server. Never infer
+the production database provider from old deployment scripts.
 
-## `migration_lock.toml`
+## Provider changes
 
-```
-provider = "sqlite"
-```
-
-This locks the **dev** workflow to SQLite so that `npx prisma migrate dev` and
-`npx prisma migrate deploy` operate against the SQLite dev database by default.
-
-For production (MySQL) deploys, the deploy script temporarily:
-
-1. copies `prisma/schema.mysql.prisma` → `prisma/schema.prisma` (so Prisma uses the
-   MySQL datasource), and
-2. flips `provider` in `migration_lock.toml` to `"mysql"`
-
-…then runs `npx prisma migrate deploy`, and finally restores the SQLite versions.
-
-## Creating new migrations (dev workflow)
-
-When you change `prisma/schema.prisma` (add a model, add a column, rename a field,
-etc.):
-
-```bash
-# 1. Edit prisma/schema.prisma (SQLite dev schema)
-# 2. Generate the migration SQL without applying it yet:
-npx prisma migrate dev --name <short_description> --create-only
-
-# 3. Inspect prisma/migrations/<timestamp>_<name>/migration.sql
-# 4. Apply it to the local dev DB:
-npx prisma migrate dev
-```
-
-> **Drift gotcha:** if you previously used `prisma db push` (as this project did),
-> `migrate dev` will detect drift because the `_prisma_migrations` table is empty.
-> To recover, use `prisma migrate diff --from-empty --to-schema-datamodel
-> prisma/schema.prisma --script` to baseline the existing schema (this is how
-> `00000000000000_initial` was created).
-
-## Mirroring changes to the MySQL schema
-
-After landing a migration in `prisma/schema.prisma`, apply the **same change** to
-`prisma/schema.mysql.prisma` (with the appropriate `@db.*` column types), then
-regenerate the MySQL initial migration:
-
-```bash
-npx prisma migrate diff \
-  --from-empty \
-  --to-schema-datamodel prisma/schema.mysql.prisma \
-  --script \
-  > prisma/migrations/00000000000000_mysql_initial/migration.sql
-```
-
-(For a brand-new MySQL production database, only the **latest** `00000000000000_mysql_initial`
-SQL is applied — it always represents the full schema from empty. For an already-deployed
-MySQL DB, you would instead generate an incremental diff via:
-
-```bash
-npx prisma migrate diff \
-  --from-migrations prisma/migrations/00000000000000_mysql_initial \
-  --to-schema-datamodel prisma/schema.mysql.prisma \
-  --script \
-  > prisma/migrations/<timestamp>_<name>/migration.sql
-```
-
-…then in production run `npx prisma migrate deploy` to apply only the new migration.)
-
-## Deploying in production (cPanel / MySQL 8)
-
-The deploy script (`deploy/cpanel/setup-cpanel.sh` and `deploy/deploy.sh`) does
-this for you. The manual flow is:
-
-```bash
-# 1. Make sure the MySQL schema is the active one:
-cp prisma/schema.mysql.prisma prisma/schema.prisma
-
-# 2. Flip the lock to MySQL:
-sed -i 's/provider = "sqlite"/provider = "mysql"/' prisma/migrations/migration_lock.toml
-
-# 3. Make sure DATABASE_URL points at the MySQL DB:
-export DATABASE_URL="mysql://aloeduca_alamin_crm:ALO2026a@localhost:3306/aloeduca_alamin_crm"
-
-# 4. Generate the Prisma Client for MySQL:
-npx prisma generate
-
-# 5. Apply migrations:
-npx prisma migrate deploy
-
-# 6. Seed if needed:
-npx prisma db seed
-```
-
-After deploy, you can revert `prisma/schema.prisma` and `migration_lock.toml` back
-to the SQLite versions so local dev continues to work — production has already
-recorded the migration in its own `_prisma_migrations` table.
-
-## Validation & formatting
-
-```bash
-npx prisma validate    # confirms both schemas are syntactically valid
-npx prisma format      # formats schema files in place
-```
-
-## Notes & known issues
-
-- **The two schemas are out of sync.** As of this writing,
-  `prisma/schema.prisma` (SQLite) has **55 models**, while
-  `prisma/schema.mysql.prisma` has only **25 models**. The 30 missing models in
-  the MySQL schema are all of the `EnglishLearning*` (11) and `HigherStudy*` (19)
-  tables. The MySQL migration in `00000000000000_mysql_initial/migration.sql`
-  therefore only creates 25 tables. **Before going live on MySQL production**, a
-  follow-up task must add the 30 missing models to `prisma/schema.mysql.prisma`
-  (mirroring their definitions from `prisma/schema.prisma`, with `@db.*` column
-  types) and regenerate the MySQL initial migration. Until then, the English
-  Learning and Higher Study modules will not have tables on the production MySQL
-  database.
-- The local SQLite dev database (`db/custom.db`, 274 seeded rows) is left
-  untouched. Migrating it onto the new migration history would require either
-  `prisma migrate resolve --applied 00000000000000_initial` (to mark the existing
-  schema as already migrated) or wiping and re-seeding.
+Moving to MySQL or another provider is a separate reviewed data-migration project. It requires a
+complete provider-specific schema, migration history for all 55 models, data export/import,
+referential-integrity validation, application cutover, and rollback testing. Do not swap schema
+files during a normal application deployment.

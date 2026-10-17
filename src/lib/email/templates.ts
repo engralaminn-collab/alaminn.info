@@ -141,7 +141,104 @@ ${p.joinUrl ? "Join: " + p.joinUrl + "\n\n" : ""}Please arrive 2 minutes early. 
   }
 }
 
-// ─── 4. Meeting Reminder ──────────────────────────────────────────────────
+// ─── 4. Meeting Request Received ──────────────────────────────────────────
+export function meetingRequestReceived(p: {
+  name: string;
+  reference: string;
+  meetingType: string;
+  requestedDate: string;
+  requestedTime: string;
+  timezone: string;
+}): TemplateResult {
+  return renderEmail({
+    subject: `Meeting request received — ${p.reference}`,
+    preheader: `We received your ${p.meetingType} request`,
+    accent: "blue",
+    bodyHtml: `
+      <h1>Your meeting request is recorded</h1>
+      <p>Hi ${escape(p.name)}, we received your request to meet with Al Aminn. The requested slot is not confirmed until you receive a calendar invitation or confirmation message.</p>
+      <div class="meta">
+        <strong>Reference:</strong> ${escape(p.reference)}<br/>
+        <strong>Type:</strong> ${escape(p.meetingType)}<br/>
+        <strong>Requested date:</strong> ${escape(p.requestedDate)}<br/>
+        <strong>Requested time:</strong> ${escape(p.requestedTime)} (${escape(p.timezone)})
+      </div>
+      <p>The team will review availability and respond within one business day. Reply to this email with your reference if you need to add information.</p>
+    `,
+    bodyText: `Your meeting request is recorded\n\nHi ${p.name}, we received your request to meet with Al Aminn. The requested slot is not confirmed until you receive a calendar invitation or confirmation message.\n\nReference: ${p.reference}\nType: ${p.meetingType}\nRequested date: ${p.requestedDate}\nRequested time: ${p.requestedTime} (${p.timezone})\n\nThe team will review availability and respond within one business day.`,
+  });
+
+  function escape(s: string) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+}
+
+// ─── 5. New Meeting Booking (Internal) ────────────────────────────────────
+export function meetingBookedInternal(p: {
+  studentName: string;
+  email: string;
+  whatsapp?: string | null;
+  country?: string | null;
+  studyLevel?: string | null;
+  subject?: string | null;
+  destination?: string | null;
+  intake?: string | null;
+  meetingType: string;
+  date: string;
+  time: string;
+  timezone: string;
+  bookingReference: string;
+  meetingLink?: string | null;
+  studentMessage?: string | null;
+  createdAt: string;
+  adminUrl: string;
+  studentUrl: string;
+  calendarUrl: string;
+  contactUrl: string;
+}): TemplateResult {
+  const row = (label: string, value?: string | null) =>
+    `<strong>${escape(label)}:</strong> ${escape(value?.trim() || "Not provided")}<br/>`;
+
+  return renderEmail({
+    subject: `NEW MEETING BOOKED - ${p.studentName}`,
+    preheader: `${p.bookingReference} · ${p.date} at ${p.time}`,
+    accent: "orange",
+    bodyHtml: `
+      <h1>New meeting booked</h1>
+      <div class="meta">
+        ${row("Student", p.studentName)}
+        ${row("Email", p.email)}
+        ${row("WhatsApp", p.whatsapp)}
+        ${row("Country", p.country)}
+        ${row("Study level", p.studyLevel)}
+        ${row("Subject", p.subject)}
+        ${row("Destination", p.destination)}
+        ${row("Intake", p.intake)}
+        ${row("Meeting type", p.meetingType)}
+        ${row("Date", p.date)}
+        ${row("Time", p.time)}
+        ${row("Timezone", p.timezone)}
+        ${row("Booking ID", p.bookingReference)}
+        ${row("Meeting link", p.meetingLink)}
+        ${row("Booking created", p.createdAt)}
+      </div>
+      ${p.studentMessage ? `<h2>Student message</h2><p>${escape(p.studentMessage)}</p>` : ""}
+      <p>A notification and follow-up task were created in the Command Center.</p>
+      <h2>Admin actions</h2>
+      ${btn(p.studentUrl, "Open student")}
+      ${btn(p.adminUrl, "Open booking")}
+      ${btn(p.calendarUrl, "Open calendar")}
+      ${btn(p.contactUrl, "Contact student")}
+    `,
+    bodyText: `NEW MEETING BOOKED - ${p.studentName}\n\nNew Consultation Booking\n\nStudent: ${p.studentName}\nEmail: ${p.email}\nWhatsApp: ${p.whatsapp || "Not provided"}\n\nCountry: ${p.country || "Not provided"}\nStudy Level: ${p.studyLevel || "Not provided"}\nSubject: ${p.subject || "Not provided"}\nPreferred Destination: ${p.destination || "Not provided"}\nPreferred Intake: ${p.intake || "Not provided"}\n\nMeeting Type: ${p.meetingType}\nDate: ${p.date}\nTime: ${p.time}\nTimezone: ${p.timezone}\n\nBooking ID: ${p.bookingReference}\nMeeting Link: ${p.meetingLink || "Not assigned"}\n\nStudent Message: ${p.studentMessage || "Not provided"}\n\nBOOKING CREATED:\n${p.createdAt}\n\nADMIN ACTIONS:\nOpen Student: ${p.studentUrl}\nOpen Booking: ${p.adminUrl}\nOpen Calendar: ${p.calendarUrl}\nContact Student: ${p.contactUrl}`,
+  });
+
+  function escape(s: string) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+}
+
+// ─── 6. Meeting Reminder ──────────────────────────────────────────────────
 export function meetingReminder(p: {
   name: string;
   scheduledAt: string;
@@ -887,6 +984,8 @@ export const EMAIL_TEMPLATES = {
   inquiryConfirmation,
   inquiryReceivedInternal,
   meetingConfirmation,
+  meetingRequestReceived,
+  meetingBookedInternal,
   meetingReminder,
   newsletterVerification,
   newsletterWelcome,

@@ -1,7 +1,7 @@
 /**
  * tests/lib/email-templates.test.ts — branded email templates
  *
- * Covers the 22 template functions exported from src/lib/email/templates.ts:
+ * Covers the 24 template functions exported from src/lib/email/templates.ts:
  *   - every template function exists in EMAIL_TEMPLATES
  *   - each returns { subject, html, text } with the right types
  *   - subject is a non-empty string
@@ -22,6 +22,8 @@ import {
   inquiryConfirmation,
   inquiryReceivedInternal,
   meetingConfirmation,
+  meetingRequestReceived,
+  meetingBookedInternal,
   meetingReminder,
   newsletterVerification,
   newsletterWelcome,
@@ -47,6 +49,8 @@ const TEMPLATE_NAMES = [
   "inquiryConfirmation",
   "inquiryReceivedInternal",
   "meetingConfirmation",
+  "meetingRequestReceived",
+  "meetingBookedInternal",
   "meetingReminder",
   "newsletterVerification",
   "newsletterWelcome",
@@ -70,8 +74,8 @@ const TEMPLATE_NAMES = [
 ] as const;
 
 describe("EMAIL_TEMPLATES registry — completeness", () => {
-  it("exposes exactly 22 templates", () => {
-    expect(Object.keys(EMAIL_TEMPLATES)).toHaveLength(22);
+  it("exposes exactly 24 templates", () => {
+    expect(Object.keys(EMAIL_TEMPLATES)).toHaveLength(24);
   });
 
   it("exposes every expected template name", () => {
@@ -114,6 +118,38 @@ const SAMPLES: Record<
       timezone: "GMT",
       location: "Zoom",
       joinUrl: "https://zoom.us/j/123",
+    }),
+  meetingRequestReceived: () =>
+    meetingRequestReceived({
+      name: "Jane Doe",
+      reference: "ALM-MTG-2026-AB12CD34",
+      meetingType: "Education Advisory",
+      requestedDate: "Saturday, 15 August 2026",
+      requestedTime: "10:00",
+      timezone: "Asia/Dhaka",
+    }),
+  meetingBookedInternal: () =>
+    meetingBookedInternal({
+      studentName: "Jane Doe",
+      email: "jane@example.com",
+      whatsapp: "+8801712345678",
+      country: "Bangladesh",
+      studyLevel: "Masters",
+      subject: "Computer Science",
+      destination: "United Kingdom",
+      intake: "September 2027",
+      meetingType: "Education Advisory",
+      date: "Saturday, 15 August 2026",
+      time: "10:00",
+      timezone: "Asia/Dhaka",
+      bookingReference: "ALM-MTG-2026-AB12CD34",
+      meetingLink: null,
+      studentMessage: "I would like to discuss scholarships.",
+      createdAt: "2026-08-01T04:00:00.000Z",
+      adminUrl: "https://alaminn.info/admin/meetings",
+      studentUrl: "https://alaminn.info/admin/students?email=jane%40example.com",
+      calendarUrl: "https://alaminn.info/admin/calendar",
+      contactUrl: "mailto:jane@example.com",
     }),
   meetingReminder: () =>
     meetingReminder({

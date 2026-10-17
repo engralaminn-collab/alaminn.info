@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
  *
  * Recommended cPanel cron schedule: `30 4 * * 0` (weekly, Sunday 04:30).
  *
- * Auth: requires `x-cron-secret` header (or `?secret=` query) matching
+ * Auth: requires `x-cron-secret` header matching
  * `CRON_SECRET`. Returns 401 on auth failure, 503 if unconfigured.
  */
 export async function GET(request: NextRequest) {

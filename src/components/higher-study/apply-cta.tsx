@@ -19,7 +19,7 @@
  *
  * All public context is typed via `ReferralContext` from types.ts.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Send,
   Loader2,
@@ -94,15 +94,6 @@ export function ApplyCta({
   const [consented, setConsented] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
-
-  // Reset state when the dialog closes.
-  useEffect(() => {
-    if (phase === "idle") {
-      setConsented(false);
-      setErrorMsg(null);
-      setRedirectUrl(null);
-    }
-  }, [phase]);
 
   const context: ReferralContext = {
     countrySlug,
@@ -189,7 +180,12 @@ export function ApplyCta({
       <Dialog
         open={phase !== "idle"}
         onOpenChange={(open) => {
-          if (!open) setPhase("idle");
+          if (!open) {
+            setPhase("idle");
+            setConsented(false);
+            setErrorMsg(null);
+            setRedirectUrl(null);
+          }
         }}
       >
         <DialogContent className="max-w-[480px] overflow-hidden rounded-2xl">

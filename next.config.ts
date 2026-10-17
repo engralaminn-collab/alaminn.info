@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   reactStrictMode: false,
-  allowedDevOrigins: ["*.space-z.ai", "127.0.0.1", "localhost", "21.0.4.174"],
+  allowedDevOrigins: ["*.e2b.app", "127.0.0.1", "localhost"],
   // Tree-shake and optimize large icon/utility libraries so only the
   // icons actually used end up in the client bundle.
   experimental: {
@@ -17,15 +17,9 @@ const nextConfig: NextConfig = {
   compress: true,
   // Send ETag headers for static and page responses to improve caching.
   generateEtags: true,
-  // Power the HTTP cache for static assets (1 year, immutable).
+  // Add cache policy for stable public brand assets. Next.js owns its internal static cache headers.
   async headers() {
     return [
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
-        ],
-      },
       {
         source: "/brand/:path*",
         headers: [

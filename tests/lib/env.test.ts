@@ -26,6 +26,8 @@ const KEYS_WE_TOUCH = [
   "EMAIL_REPLY_TO",
   "NEXT_PUBLIC_SITE_URL",
   "DATABASE_URL",
+  "HIGHER_STUDY_REFERRAL_SECRET",
+  "ENGLISH_LEARNING_REFERRAL_SECRET",
 ];
 
 const snapshot: Record<string, string | undefined> = {};
@@ -49,6 +51,8 @@ function setDev() {
 }
 function setProd() {
   process.env.NODE_ENV = "production";
+  process.env.HIGHER_STUDY_REFERRAL_SECRET = "h".repeat(48);
+  process.env.ENGLISH_LEARNING_REFERRAL_SECRET = "e".repeat(48);
 }
 function clearAuthSecret() {
   delete process.env.AUTH_SECRET;
@@ -128,6 +132,14 @@ describe("env() — production hardening", () => {
     process.env.AUTH_SECRET = "x".repeat(64);
     delete process.env.EMAIL_FROM;
     expect(() => env()).toThrow(/EMAIL_FROM is missing/);
+  });
+
+  it("throws when referral-signing secrets are missing in production", () => {
+    setProd();
+    process.env.AUTH_SECRET = "x".repeat(64);
+    process.env.EMAIL_FROM = "Al Aminn <hello@alaminn.info>";
+    delete process.env.HIGHER_STUDY_REFERRAL_SECRET;
+    expect(() => env()).toThrow(/HIGHER_STUDY_REFERRAL_SECRET/);
   });
 });
 

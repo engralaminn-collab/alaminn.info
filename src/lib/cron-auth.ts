@@ -13,9 +13,8 @@
  *     misconfigured deployments.
  *   - Constant-time comparison via `timingSafeEqual` to prevent timing
  *     attacks against the secret.
- *   - Accepts the secret via either the `x-cron-secret` header (preferred)
- *     or a `?secret=` query parameter (fallback for schedulers that cannot
- *     set headers). Both are matched in constant time.
+ *   - Accepts the secret only via the `x-cron-secret` header. Query-string
+ *     credentials are rejected because URLs are commonly retained in logs.
  *
  * The header lookup uses the standard `Headers` API which is case-insensitive
  * per the WHATWG fetch spec, so `X-Cron-Secret`, `x-cron-secret`, etc. all
@@ -23,6 +22,7 @@
  */
 import { timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
+import { env } from "@/lib/env";
 
 export type CronAuthResult =
   | { ok: true }
@@ -38,7 +38,7 @@ export type CronAuthResult =
  *   the status code as-is.
  */
 export function verifyCronAuth(request: NextRequest): CronAuthResult {
-  const secret = process.env.CRON_SECRET;
+  const secret = env().cronSecret;
   if (!secret || secret.length === 0) {
     // Fail closed — server is misconfigured. Do not run the cron job.
     return {
@@ -48,16 +48,13 @@ export function verifyCronAuth(request: NextRequest): CronAuthResult {
     };
   }
 
-  // Prefer header; fall back to ?secret= query param for legacy schedulers.
-  const headerVal = request.headers.get("x-cron-secret");
-  const queryVal = request.nextUrl.searchParams.get("secret");
-  const provided = headerVal ?? queryVal;
+  const provided = request.headers.get("x-cron-secret");
 
   if (!provided) {
     return {
       ok: false,
       status: 401,
-      error: "Missing x-cron-secret header or ?secret= query parameter",
+      error: "Missing x-cron-secret header",
     };
   }
 

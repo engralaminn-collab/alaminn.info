@@ -14,7 +14,7 @@
 #    ./scripts/verify-production.sh
 #
 #  PREREQUISITES
-#    - Node.js 20+ on PATH (`node`).
+#    - Node.js 22+ on PATH (`node`).
 #    - npm 9+ on PATH.
 #    - npx on PATH.
 #    - Run from anywhere — the script cds into the project root

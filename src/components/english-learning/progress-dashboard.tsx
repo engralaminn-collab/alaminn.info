@@ -87,13 +87,12 @@ type Phase = "loading" | "ready" | "error";
 export function ProgressDashboard() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [sessionId, setSessionId] = useState<string>("");
+  const [sessionId] = useState<string>(getSessionId);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const sid = getSessionId();
-    setSessionId(sid);
+    const sid = sessionId;
     let cancelled = false;
     (async () => {
       try {
@@ -117,7 +116,7 @@ export function ProgressDashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionId]);
 
   const refresh = () => {
     setPhase("loading");
