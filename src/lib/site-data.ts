@@ -375,12 +375,12 @@ export const MY_WORK_HIGHLIGHTS: WorkHighlight[] = [
  * Insights + Resources + Updates merged, Work With Me + Contact merged.
  */
 export const NAV_LINKS = [
-  { label: "Career & Roles", href: "/career", page: true },
-  { label: "ALO Education", href: "/alo-education", page: true },
-  { label: "Services", href: "/services", page: true },
-  { label: "Destinations", href: "/destinations", page: true },
-  { label: "News & Insights", href: "/news", page: true },
-  { label: "AI Assistant", href: "/ai-assistant", page: true },
+  { label: "About & Expertise", href: "/about", page: true },
+  { label: "Impact", href: "/impact", page: true },
+  { label: "Projects", href: "/projects", page: true },
+  { label: "Insights", href: "/insights", page: true },
+  { label: "Higher Study", href: "/higher-study", page: true },
+  { label: "Work With Me", href: "/work-with-me", page: true },
 ];
 
 export const EXPERTISE_MEGA = {
